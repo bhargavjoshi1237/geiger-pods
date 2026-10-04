@@ -1,26 +1,20 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "@geiger/ui/tokens.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@source "../node_modules/@geiger/ui/src";
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { font-family: var(--font-geist-sans), sans-serif; }
+  button, a, input { -webkit-tap-highlight-color: transparent; }
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@theme {
+  --animate-transmit: transmit 8s linear infinite;
+  @keyframes transmit { to { stroke-dashoffset: -478; } }
 }

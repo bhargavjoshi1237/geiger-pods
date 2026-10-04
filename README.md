@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Geiger Pods
 
-## Getting Started
+The Geiger API gateway product. Phase 0 provides the public page, inherited Geiger session, shared project resolution, native workspace shell, overview, read-only project details and gateway roadmap.
 
-First, run the development server:
+## Run locally
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Requires Node.js 22 or later.
+
+```sh
+npm install
+# Copy .env.example to .env.local and use the same Supabase settings as geiger-dash.
+npm run dev -- --port 3007
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `/` for the public page and `/project` for the workspace. Sign in through geiger-dash first. Use the same hostname (`localhost` on both ports) so the browser shares the session cookie. Set `NEXT_PUBLIC_DASH_URL` to the actual Dash origin (for example, `http://localhost:3001` when Pods uses port 3000); leave it empty for same-origin production hosting. Pods reads the inherited browser session like Events and rechecks cookies when the tab regains focus, including sign-in/out on another local port.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Ecosystem
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `@geiger/ui`: shared tokens, SuiteHeader/Footer, Topbar, Sidebar, screen-kit, dialogs, menus and loaders. Revisions match Events.
+- `@geiger/rbac`: minimal read-only permission catalog bound to verified shared org membership. Missing data/errors deny access. Persistent API-scoped grant storage follows in Phase 1.
+- `@geiger/orm`: migration tooling configured for the `pods` schema and server-only `STRING_URI`.
+- Shared `public.projects` and `public.organization_users` remain owned by the parent suite. Pods does not implement its own login or mutate shared projects.
 
-## Learn More
+Production builds default to `/pods`, matching Dash's existing rewrites. `GEIGER_BASE_PATH` overrides this at build time for an isolated deployment. Normal Next links apply the prefix automatically; parent `/login` and `/org` anchors deliberately use the root domain.
 
-To learn more about Next.js, take a look at the following resources:
+## Checks and database workflow
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```sh
+npm test
+npm run lint
+npm run build
+npm run db:new -- add_api_catalog
+npm run db:status
+npm run db:push
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+No product migration is needed for the read-only foundation. Before Phase 1 writes, add product tables and audited resource-scoped RLS through Geiger ORM. Never copy a service-role key into a public environment variable.
 
-## Deploy on Vercel
+## Research and plans
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- [Research index](research/README.md)
+- [AWS capability inventory](research/aws-api-gateway.md)
+- [Replacement roadmap](research/replacement-roadmap.md)
+- [Geiger integration findings](research/geiger-ecosystem.md)
+- [Foundation design](docs/superpowers/specs/2026-10-04-pods-foundation-design.md)
+- [Foundation plan](docs/superpowers/plans/2026-10-04-pods-foundation.md)
+- [Verification evidence and limits](docs/foundation-verification.md)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+APIs, Deployments, Access, Domains and Monitoring currently show their planned milestones. The foundation does not proxy API traffic, create APIs, issue keys or publish deployments. The overview contains no fabricated traffic data.
