@@ -91,9 +91,9 @@ Created by S01; every spec updates the rows it delivers with evidence links.
 | Automatic deployments | H | S05 | planned | — |
 | `$default` stage (no stage prefix in URL) | H | S05 | planned | — |
 | Test invocation (method and authorizer test) | R | S05/S07 | planned | — |
-| Canary release (percent traffic, canary stage variables, promote) | R | S09 | planned | — |
-| Stage cache: capacity, TTL 0–3600 s, per-method override, cache keys, encryption, invalidation with `Cache-Control: max-age=0` + authorization policy | R | S09 | planned | — |
-| Response streaming (`STREAM` transfer mode, 15 min, idle timeouts) | R | S09 | planned | — |
+| Canary release (percent traffic, canary stage variables, promote) | R | S09 | runtime-tested | tests/s09/canary.test.mjs, tests/s09/runtime.test.mjs, tests/s09/control.test.mjs |
+| Stage cache: capacity, TTL 0–3600 s, per-method override, cache keys, encryption, invalidation with `Cache-Control: max-age=0` + authorization policy | R | S09 | runtime-tested | tests/s09/cache.test.mjs (engine via handle()+upstream; flush via control service) |
+| Response streaming (`STREAM` transfer mode, 15 min, idle timeouts) | R | S09 | runtime-tested | tests/s09/runtime.test.mjs, tests/s09/streaming-limits.test.mjs, tests/s09/streaming.test.mjs |
 | OpenAPI 2.0/3.0 import (overwrite/merge, warnings), export (with/without extensions, Postman) | R H | S13 | planned | — |
 | Documentation parts & documentation versions | R | S13 | planned | — |
 | SDK generation (JS, TS, Python, Java, Ruby, Go, Swift/Android equivalents) | R | S13 | planned | — |

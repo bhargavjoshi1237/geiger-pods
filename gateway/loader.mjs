@@ -123,6 +123,10 @@ export function createMemoryLoader(options = {}) {
         stageVariables: entry.stageVariables ?? artifact.stageVariables ?? {},
         basePathStripped: stripped,
         deploymentId: entry.deploymentId ?? artifact.deploymentId ?? null,
+        // S09: canary + stage cache travel alongside the base artifact.
+        canary: entry.canary ?? artifact.canary ?? null,
+        canaryArtifact: entry.canaryArtifact ?? artifact.canaryArtifact ?? null,
+        stageCache: entry.stageCache ?? artifact.stageCache ?? null,
       };
     }
     if (stages.has(`${apiPublicId}:$default`)) {
@@ -135,6 +139,9 @@ export function createMemoryLoader(options = {}) {
         stageVariables: entry.stageVariables ?? artifact.stageVariables ?? {},
         basePathStripped: remainder || "/",
         deploymentId: entry.deploymentId ?? artifact.deploymentId ?? null,
+        canary: entry.canary ?? artifact.canary ?? null,
+        canaryArtifact: entry.canaryArtifact ?? artifact.canaryArtifact ?? null,
+        stageCache: entry.stageCache ?? artifact.stageCache ?? null,
       };
     }
     // No stage matched: REST → 403 Forbidden, HTTP → 404 Not Found.
@@ -228,12 +235,32 @@ export function createSupabaseLoader({ supabase, kv = null, domain = null, pathR
 
   async function getStage(apiId, name) {
     const { data, error } = await supabase.schema("pods").from("stages")
-      .select("id, api_id, name, deployment_id, variables")
+      .select("id, api_id, name, deployment_id, variables, canary, method_settings, cache_cluster_enabled, cache_cluster_size, cache_default_ttl, cache_data_encrypted, require_authorization_for_cache_control, unauthorized_cache_control_header_strategy")
       .eq("api_id", apiId)
       .eq("name", name)
       .maybeSingle();
     if (error) throw error;
     return data;
+  }
+
+  /**
+   * S09: stage cache snapshot from a stage row (mutable settings travel
+   * separately from the immutable artifact).
+   *
+   * @param {object|null} stage
+   * @returns {object|null}
+   */
+  function stageCacheFromRow(stage) {
+    if (!stage || !stage.cache_cluster_enabled) return null;
+    return {
+      enabled: true,
+      size: stage.cache_cluster_size ?? null,
+      defaultTtl: stage.cache_default_ttl ?? 300,
+      encrypted: stage.cache_data_encrypted ?? false,
+      requireAuth: stage.require_authorization_for_cache_control ?? true,
+      strategy: stage.unauthorized_cache_control_header_strategy ?? "SUCCEED_WITH_RESPONSE_HEADER",
+      methodSettings: stage.method_settings ?? {},
+    };
   }
 
   async function getDeployment(id) {
@@ -334,6 +361,28 @@ export function createSupabaseLoader({ supabase, kv = null, domain = null, pathR
       if (stage?.deployment_id) {
         stagePointers.set(pointerKey, { deploymentId: stage.deployment_id, variables: stage.variables ?? {}, expiresAt: now() + STAGE_TTL_MS });
         const artifact = await getDeployment(stage.deployment_id);
+        // S09: canary deployment artifact + stage cache snapshot (best-effort).
+        let canary = null;
+        let canaryArtifact = null;
+        try {
+          const raw = stage.canary ?? null;
+          if (raw && (raw.deploymentId ?? raw.deployment_id)) {
+            const canaryId = raw.deploymentId ?? raw.deployment_id;
+            canaryArtifact = await getDeployment(canaryId).catch(() => null);
+            if (canaryArtifact) {
+              canary = {
+                deploymentId: canaryId,
+                percentTraffic: raw.percentTraffic ?? raw.percent_traffic ?? 0,
+                stageVariableOverrides: raw.stageVariableOverrides ?? raw.stage_variable_overrides ?? {},
+                useStageCache: raw.useStageCache ?? raw.use_stage_cache ?? false,
+                sticky: raw.sticky ?? null,
+              };
+            }
+          }
+        } catch {
+          canary = null;
+          canaryArtifact = null;
+        }
         return {
           apiPublicId,
           stage: first,
@@ -341,6 +390,9 @@ export function createSupabaseLoader({ supabase, kv = null, domain = null, pathR
           stageVariables: stage.variables ?? {},
           basePathStripped: `/${segments.slice(1).join("/")}` || "/",
           deploymentId: stage.deployment_id,
+          canary,
+          canaryArtifact,
+          stageCache: stageCacheFromRow(stage),
         };
       }
     }

@@ -491,6 +491,44 @@ paths:
       responses:
         2XX:
           description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/stages/{stageName}/cache:
+    get:
+      operationId: get_projects_projectId_apis_apiId_stages_stageName_cache
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    put:
+      operationId: put_projects_projectId_apis_apiId_stages_stageName_cache
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    delete:
+      operationId: delete_projects_projectId_apis_apiId_stages_stageName_cache
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/stages/{stageName}/canary/promote:
+    post:
+      operationId: post_projects_projectId_apis_apiId_stages_stageName_canary_promote
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/stages/{stageName}/canary:
+    get:
+      operationId: get_projects_projectId_apis_apiId_stages_stageName_canary
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    put:
+      operationId: put_projects_projectId_apis_apiId_stages_stageName_canary
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    delete:
+      operationId: delete_projects_projectId_apis_apiId_stages_stageName_canary
+      responses:
+        2XX:
+          description: Success envelope (JSON).
   /projects/{projectId}/apis/{apiId}/stages/{stageName}/history:
     get:
       operationId: get_projects_projectId_apis_apiId_stages_stageName_history

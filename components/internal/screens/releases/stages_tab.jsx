@@ -13,6 +13,8 @@ import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
 import { StageThrottleTab } from "../usage/stage_throttle_tab";
 import { StageLoggingTab } from "../monitoring/stage_logging_tab";
+import { CanaryTab } from "./canary_tab";
+import { CacheTab } from "./cache_tab";
 
 async function api(projectId, apiId, path, options = {}) {
   const response = await fetch(`/api/v1/projects/${encodeURIComponent(projectId)}/apis/${encodeURIComponent(apiId)}${path}`, {
@@ -158,7 +160,7 @@ function StageDetail({ api, stage, onClose, onChanged, can, projectId }) {
 
   return <div className="mt-4 space-y-4 border-t border-border pt-4">
     <div className="flex flex-wrap gap-2" role="tablist" aria-label={`Stage ${stage.name} sections`}>
-      {[["settings", "Settings"], ["throttling", "Throttling"], ["logging", "Logs & tracing"], ["history", "History"]].map(([key, label]) => <Button
+      {[["settings", "Settings"], ["canary", "Canary"], ["cache", "Cache"], ["throttling", "Throttling"], ["logging", "Logs & tracing"], ["history", "History"]].map(([key, label]) => <Button
         key={key}
         variant={subTab === key ? "default" : "outline"}
         size="sm"
@@ -182,8 +184,10 @@ function StageDetail({ api, stage, onClose, onChanged, can, projectId }) {
       <div className="flex gap-2">
         <Button variant="outline" size="sm" disabled={busy || !can("pods.stage.write")} onClick={saveVariables}>Save variables</Button>
       </div>
-      <p className="text-xs text-muted-foreground">Client certificates ride on the stage; manage them under API Settings. Cache and canary arrive in S09.</p>
+      <p className="text-xs text-muted-foreground">Client certificates ride on the stage; manage them under API Settings.</p>
     </div> : null}
+    {subTab === "canary" ? <CanaryTab api={api} stage={stage} onChanged={onChanged} /> : null}
+    {subTab === "cache" ? <CacheTab api={api} stage={stage} onChanged={onChanged} /> : null}
     {subTab === "throttling" ? <StageThrottleTab api={api} stage={stage} /> : null}
     {subTab === "logging" ? <StageLoggingTab apiId={apiRef} stageName={stage.name} /> : null}
     {subTab === "history" ? <div className="space-y-2">

@@ -70,6 +70,10 @@ function IntegrationForm({ protocol, initial, connectors, onSubmit, submitting }
     responses: initial?.responseParameters ?? {},
   });
   const [templateSelectionExpression, setTemplateSelectionExpression] = useState(initial?.templateSelectionExpression ?? "");
+  // S09 release controls (REST only): streaming transfer + cache key params.
+  const [transferMode, setTransferMode] = useState(initial?.responseTransferMode ?? "BUFFERED");
+  const [cacheKeysText, setCacheKeysText] = useState((initial?.cacheKeyParameters ?? []).join("\n"));
+  const [cacheNamespace, setCacheNamespace] = useState(initial?.cacheNamespace ?? "");
   const uriError = useMemo(() => ((type === "HTTP_PROXY" || type === "HTTP") ? validateUri(uri) : null), [type, uri]);
   const max = timeoutMax(protocol);
   return <form className="space-y-4" onSubmit={(event) => {
@@ -89,6 +93,13 @@ function IntegrationForm({ protocol, initial, connectors, onSubmit, submitting }
       ...(description ? { description } : {}),
       ...(protocol === "HTTP" ? { requestParameters: mapping.request ?? {}, responseParameters: mapping.responses ?? {} } : {}),
       ...(protocol === "WEBSOCKET" && templateSelectionExpression ? { templateSelectionExpression } : {}),
+      // S09: streaming + cache keys (REST proxy/function only; the API
+      // validates the full conflict matrix at deploy).
+      ...(protocol === "REST" ? {
+        responseTransferMode: transferMode,
+        cacheKeyParameters: cacheKeysText.split("\n").map((entry) => entry.trim()).filter(Boolean),
+        ...(cacheNamespace ? { cacheNamespace } : {}),
+      } : {}),
     });
   }}>
     <div className="space-y-2">
@@ -159,6 +170,29 @@ function IntegrationForm({ protocol, initial, connectors, onSubmit, submitting }
     {protocol === "WEBSOCKET" ? <div className="space-y-2">
       <Label htmlFor="integration-template-selection">Template selection expression (WebSocket)</Label>
       <Input id="integration-template-selection" value={templateSelectionExpression} onChange={(event) => setTemplateSelectionExpression(event.target.value)} placeholder="$default" spellCheck={false} className="font-mono" />
+    </div> : null}
+    {protocol === "REST" ? <div className="space-y-2">
+      <Label>Transfer mode</Label>
+      <Select value={transferMode} onValueChange={setTransferMode}>
+        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="BUFFERED">Buffered</SelectItem>
+          <SelectItem value="STREAM">Stream (HTTP_PROXY/FUNCTION_PROXY only)</SelectItem>
+        </SelectContent>
+      </Select>
+      {transferMode === "STREAM" ? <p className="text-xs text-muted-foreground">STREAM is incompatible with stage caching for this method, response compression and response mapping templates — deploy fails naming the conflict.</p> : null}
+      <Label htmlFor="integration-cache-keys">Cache key parameters (one per line)</Label>
+      <textarea
+        id="integration-cache-keys"
+        className="min-h-16 w-full rounded-md border border-input bg-background p-2 font-mono text-xs"
+        value={cacheKeysText}
+        onChange={(event) => setCacheKeysText(event.target.value)}
+        placeholder={"method.request.querystring.page\nmethod.request.header.Accept"}
+        spellCheck={false}
+      />
+      <p className="text-xs text-muted-foreground">Query params outside this list are ignored. For proxy resources {"{proxy}"} is always keyed.</p>
+      <Label htmlFor="integration-cache-ns">Cache namespace (optional)</Label>
+      <Input id="integration-cache-ns" value={cacheNamespace} onChange={(event) => setCacheNamespace(event.target.value)} placeholder="v1" spellCheck={false} className="font-mono" />
     </div> : null}
     <DialogFooter>
       <Button type="submit" disabled={submitting}>{submitting ? "Saving…" : initial ? "Save changes" : "Create integration"}</Button>

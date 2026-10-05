@@ -250,13 +250,34 @@ async function sendWebResponse(response, res) {
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      if (res.destroyed) break;
+      // S09: client disconnect aborts the upstream within 100 ms — cancel
+      // the engine stream (which aborts the upstream fetch) instead of just
+      // breaking the write loop.
+      if (res.destroyed) {
+        try {
+          await reader.cancel();
+        } catch {
+          // Best-effort.
+        }
+        break;
+      }
       res.write(value);
     }
+  } catch {
+    // Client disconnect mid-stream: cancel upstream, then finish.
+    try {
+      await reader.cancel();
+    } catch {
+      // Best-effort.
+    }
   } finally {
-    reader.releaseLock();
+    try {
+      reader.releaseLock();
+    } catch {
+      // Best-effort when cancelled.
+    }
   }
-  res.end();
+  if (!res.destroyed) res.end();
 }
 
 function gatewayErrorResponse(error, ctx) {
@@ -359,6 +380,11 @@ export function createGatewayServer({ loader, ports = {}, clock = null, onReques
       ctx.basePathStripped = resolved.basePathStripped;
       ctx.stage = resolved.stage;
       ctx.apiPublicId = resolved.apiPublicId;
+      // S09: canary + stage cache travel from the loader (memory fixture or
+      // Supabase stage row) onto the pipeline context.
+      if (resolved.canary) ctx.canaryConfig = resolved.canary;
+      if (resolved.canaryArtifact) ctx.canaryArtifact = resolved.canaryArtifact;
+      if (resolved.stageCache) ctx.stageCache = resolved.stageCache;
       // $context.path is the full path with the stage (AWS parity).
       if (ctx.context) {
         ctx.context.path = pathname.split("?")[0];

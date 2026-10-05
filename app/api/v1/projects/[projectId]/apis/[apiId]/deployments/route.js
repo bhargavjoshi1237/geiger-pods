@@ -1,5 +1,6 @@
 import { route } from "@/lib/control/http.mjs";
 import { createDeployment, listDeployments } from "@/lib/control/deployments.mjs";
+import { deployToCanary } from "@/lib/control/canary.mjs";
 import { scheduleAutoDeploy } from "@/lib/control/deployments.mjs";
 import { after } from "next/server";
 
@@ -17,6 +18,19 @@ export const GET = route(
 
 export const POST = route(
   async ({ db, actor, projectId, params, body, requestId }) => {
+    // S09: deploy-to-canary (AWS CreateDeployment with canarySettings).
+    if (body?.canary !== undefined && body?.canary !== null) {
+      return deployToCanary(db, actor, {
+        projectId,
+        apiId: params.apiId,
+        stageName: body?.stageName,
+        description: body?.description ?? "",
+        percentTraffic: body?.canary?.percentTraffic ?? 10,
+        stageVariableOverrides: body?.canary?.stageVariableOverrides ?? {},
+        useStageCache: body?.canary?.useStageCache ?? false,
+        requestId,
+      });
+    }
     const result = await createDeployment(db, actor, {
       projectId,
       apiId: params.apiId,

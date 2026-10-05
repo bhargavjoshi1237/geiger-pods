@@ -60,11 +60,11 @@ export function defineKvContract(label, createStore) {
     const kv = await createStore();
     try {
       for (let i = 0; i < 3; i++) {
-        const out = await kv.tokenBucket("bucket", { rate: 1000, burst: 3, cost: 1 });
+        const out = await kv.tokenBucket("bucket", { rate: 1, burst: 3, cost: 1 });
         assert.equal(out.allowed, true);
         assert.equal(out.retryAfterMs, 0);
       }
-      const denied = await kv.tokenBucket("bucket", { rate: 1000, burst: 3, cost: 1 });
+      const denied = await kv.tokenBucket("bucket", { rate: 1, burst: 3, cost: 1 });
       assert.equal(denied.allowed, false);
       assert.ok(denied.retryAfterMs >= 0);
     } finally {

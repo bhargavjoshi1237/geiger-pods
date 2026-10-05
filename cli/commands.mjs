@@ -46,9 +46,43 @@ export const COMMANDS = {
     data: await client.post(`/apis/${need(args.api, "--api")}/clone`, { body: { name: args.name ?? null } }),
   }),
   "deploy": async (client, args) => ({
+    // S09: `--canary <percent>` deploys to the canary only (AWS
+    // CreateDeployment with canarySettings); otherwise a normal deploy.
     data: await client.post(`/apis/${need(args.api, "--api")}/deployments`, {
-      body: { stageName: need(args.stage, "--stage"), description: args.description ?? "", canaryPercent: args.canary ?? null },
+      body: {
+        stageName: need(args.stage, "--stage"),
+        description: args.description ?? "",
+        ...(args.canary !== undefined && args.canary !== null
+          ? { canary: { percentTraffic: Number(args.canary) } }
+          : {}),
+      },
     }),
+  }),
+  "canary get": async (client, args) => ({
+    data: await client.get(`/apis/${need(args.api, "--api")}/stages/${need(args.stage, "--stage")}/canary`),
+  }),
+  "canary set": async (client, args) => ({
+    data: await client.put(`/apis/${need(args.api, "--api")}/stages/${need(args.stage, "--stage")}/canary`, {
+      body: {
+        percentTraffic: Number(args.percent ?? 10),
+        stageVariableOverrides: args.overrides ? JSON.parse(args.overrides) : {},
+        useStageCache: args["use-stage-cache"] === true,
+      },
+    }),
+  }),
+  "canary promote": async (client, args) => ({
+    data: await client.post(`/apis/${need(args.api, "--api")}/stages/${need(args.stage, "--stage")}/canary/promote`, {
+      body: { mergeVariables: args.merge === true, removeCanary: args.remove === true },
+    }),
+  }),
+  "canary delete": async (client, args) => ({
+    data: await client.del(`/apis/${need(args.api, "--api")}/stages/${need(args.stage, "--stage")}/canary`),
+  }),
+  "cache get": async (client, args) => ({
+    data: await client.get(`/apis/${need(args.api, "--api")}/stages/${need(args.stage, "--stage")}/cache`),
+  }),
+  "cache flush": async (client, args) => ({
+    data: await client.del(`/apis/${need(args.api, "--api")}/stages/${need(args.stage, "--stage")}/cache`),
   }),
   "stages list": async (client, args) => ({ data: await client.get(`/apis/${need(args.api, "--api")}/stages`) }),
   "stages rollback": async (client, args) => ({
