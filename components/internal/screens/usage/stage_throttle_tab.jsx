@@ -61,7 +61,31 @@ export function StageThrottleTab({ api, stage }) {
     }
   }, [project.id, apiRef, stage.name, api.protocol]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let alive = true;
+    call(project.id, apiRef, `/stages/${encodeURIComponent(stage.name)}/throttle`).then(
+      (data) => {
+        if (!alive) return;
+        setState({ status: "ready", data, error: null });
+        const rest = api.protocol === "REST";
+        const current = rest
+          ? (data.methodSettings?.["*/*"] ?? null)
+          : (data.defaultRouteSettings ?? null);
+        setDefaultText(JSON.stringify(current === null ? null : {
+          rateLimit: current.throttlingRateLimit ?? current.rateLimit,
+          burstLimit: current.throttlingBurstLimit ?? current.burstLimit,
+        }));
+        const rest2 = rest ? data.methodSettings : data.routeSettings;
+        const pairs = Object.entries(rest2 ?? {}).filter(([key]) => key !== "*/*");
+        setThrottlesText(JSON.stringify(Object.fromEntries(pairs.map(([key, entry]) => [key, {
+          rateLimit: entry.throttlingRateLimit ?? entry.rateLimit,
+          burstLimit: entry.throttlingBurstLimit ?? entry.burstLimit,
+        }])), null, 2));
+      },
+      (error) => { if (alive) setState({ status: "error", data: null, error: error.message }); },
+    );
+    return () => { alive = false; };
+  }, [project.id, apiRef, stage.name, api.protocol]);
 
   const save = async () => {
     let defaultThrottle = null;

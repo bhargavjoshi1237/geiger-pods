@@ -48,8 +48,13 @@ export function AlarmsScreen() {
   }, [project.id]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    let alive = true;
+    api(project.id, "").then(
+      (data) => { if (alive) setState({ status: "ready", items: data.items ?? [], error: null }); },
+      (error) => { if (alive) setState({ status: "error", items: [], error: error.message }); },
+    );
+    return () => { alive = false; };
+  }, [project.id]);
 
   if (!can("pods.monitoring.view")) {
     return <div className="mx-auto w-full space-y-8 px-2 py-4 lg:max-w-[85%] lg:px-0">

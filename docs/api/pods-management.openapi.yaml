@@ -130,6 +130,39 @@ paths:
       responses:
         2XX:
           description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/authorizers/{authorizerId}:
+    get:
+      operationId: get_projects_projectId_apis_apiId_authorizers_authorizerId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    patch:
+      operationId: patch_projects_projectId_apis_apiId_authorizers_authorizerId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    delete:
+      operationId: delete_projects_projectId_apis_apiId_authorizers_authorizerId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/authorizers/{authorizerId}/test:
+    post:
+      operationId: post_projects_projectId_apis_apiId_authorizers_authorizerId_test
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/authorizers:
+    get:
+      operationId: get_projects_projectId_apis_apiId_authorizers
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_apis_apiId_authorizers
+      responses:
+        2XX:
+          description: Success envelope (JSON).
   /projects/{projectId}/apis/{apiId}/clone:
     post:
       operationId: post_projects_projectId_apis_apiId_clone
@@ -303,6 +336,23 @@ paths:
           description: Success envelope (JSON).
     post:
       operationId: post_projects_projectId_apis_apiId_request_validators
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/resource-policy:
+    get:
+      operationId: get_projects_projectId_apis_apiId_resource_policy
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    put:
+      operationId: put_projects_projectId_apis_apiId_resource_policy
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/resource-policy/simulate:
+    post:
+      operationId: post_projects_projectId_apis_apiId_resource_policy_simulate
       responses:
         2XX:
           description: Success envelope (JSON).
@@ -710,6 +760,55 @@ paths:
       responses:
         2XX:
           description: Success envelope (JSON).
+  /projects/{projectId}/signing-credentials/{credentialId}/policies/{policyId}:
+    put:
+      operationId: put_projects_projectId_signing_credentials_credentialId_policies_policyId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    delete:
+      operationId: delete_projects_projectId_signing_credentials_credentialId_policies_policyId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/signing-credentials/{credentialId}/policies:
+    get:
+      operationId: get_projects_projectId_signing_credentials_credentialId_policies
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_signing_credentials_credentialId_policies
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/signing-credentials/{credentialId}:
+    get:
+      operationId: get_projects_projectId_signing_credentials_credentialId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    patch:
+      operationId: patch_projects_projectId_signing_credentials_credentialId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    delete:
+      operationId: delete_projects_projectId_signing_credentials_credentialId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/signing-credentials:
+    get:
+      operationId: get_projects_projectId_signing_credentials
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_signing_credentials
+      responses:
+        2XX:
+          description: Success envelope (JSON).
   /projects/{projectId}/stacks/{stack}/{action}:
     post:
       operationId: post_projects_projectId_stacks_stack_action
@@ -768,6 +867,11 @@ paths:
   /projects/{projectId}/usage-plans/{planId}/stages:
     post:
       operationId: post_projects_projectId_usage_plans_planId_stages
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    patch:
+      operationId: patch_projects_projectId_usage_plans_planId_stages
       responses:
         2XX:
           description: Success envelope (JSON).

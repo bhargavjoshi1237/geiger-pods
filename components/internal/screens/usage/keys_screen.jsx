@@ -77,7 +77,6 @@ export function ApiKeysScreen() {
       (error) => { if (alive) setState({ status: "error", items: [], error: error.message }); },
     );
     return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.id]);
 
   const create = async () => {

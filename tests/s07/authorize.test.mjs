@@ -215,7 +215,11 @@ test("S07: SIGNED valid signature allowed with identity context; identity deny �
   const ports = {
     fetch: async () => new Response("not found", { status: 404 }),
     signingCredentials: { async resolve(id) { return id === KEY ? { secretAccessKey: SECRET, status: "ACTIVE" } : null; } },
-    signingPolicies: { async list() { return []; } },
+    signingPolicies: {
+      async list() {
+        return [{ Version: "2012-10-17", Statement: [{ Effect: "Allow", Action: "execute-api:Invoke", Resource: "*" }] }];
+      },
+    },
   };
   const signed = await signRequest({
     method: "GET", url: "https://gw.test/pets", headers: {}, body: "",
@@ -308,4 +312,53 @@ test("S07: pre-auth IP deny at the phase never reaches the authorizer (spy)", as
     runPost(post, post.methodArn, { authType: "NONE", authorized: true, principalArn: null, identityDecision: "ImplicitDeny" }),
     (error) => error?.type === "ACCESS_DENIED",
   );
+});
+
+test("S07: SIGNED valid signature with no identity policy is an implicit deny unless the resource policy allows", async () => {
+  const SECRET = "test-secret-access-key-00000000000001";
+  const KEY = "PKIAAAAAAAAAAAAAAAAA";
+  const ports = {
+    fetch: async () => new Response("not found", { status: 404 }),
+    signingCredentials: { async resolve(id) { return id === KEY ? { secretAccessKey: SECRET, status: "ACTIVE" } : null; } },
+    signingPolicies: { async list() { return []; } },
+  };
+  const signed = await signRequest({
+    method: "GET", url: "https://gw.test/pets", headers: {}, body: "",
+    service: "execute-api", region: "auto", accessKeyId: KEY, secretAccessKey: SECRET, timestamp: NOW,
+  });
+  const headersFor = () => {
+    const headers = new Headers();
+    for (const [name, value] of Object.entries(signed.headers)) {
+      if (name !== "host") headers.set(name, value);
+    }
+    return headers;
+  };
+
+  // No resource policy: only the identity verdict counts → 403.
+  const denied = makeCtx({
+    request: new Request("https://gw.test/pets", { headers: headersFor() }),
+    artifact: restArtifact({ type: "SIGNED", authorizerId: null, scopes: [] }, {}),
+    ports,
+  });
+  denied.match = { resourceId: "res-pets" };
+  await assert.rejects(runAuthorize(denied), (error) => error?.type === "ACCESS_DENIED");
+  assert.equal(denied.authResult.identityDecision, "ImplicitDeny");
+
+  // With a resource policy, authorize defers the implicit verdict to
+  // resourcePolicy:post (§7 table: resource Allow → Allow, implicit → Deny).
+  const withPolicy = (statement) => {
+    const artifact = restArtifact({ type: "SIGNED", authorizerId: null, scopes: [] }, {});
+    artifact.settings = { resourcePolicy: { Version: "2012-10-17", Statement: [statement] } };
+    const ctx = makeCtx({ request: new Request("https://gw.test/pets", { headers: headersFor() }), artifact, ports });
+    ctx.match = { resourceId: "res-pets" };
+    return ctx;
+  };
+  const allowed = withPolicy({ Effect: "Allow", Principal: "*", Action: "execute-api:Invoke", Resource: "*" });
+  await runAuthorize(allowed);
+  assert.equal(allowed.authResult.identityDecision, "ImplicitDeny");
+  await runPost(allowed);
+
+  const implicit = withPolicy({ Effect: "Allow", Principal: { Pods: ["arn:pods:iam::other:credential/PKIOTHER"] }, Action: "execute-api:Invoke", Resource: "*" });
+  await runAuthorize(implicit);
+  await assert.rejects(runPost(implicit), (error) => error?.type === "ACCESS_DENIED");
 });

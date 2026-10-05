@@ -248,11 +248,13 @@ test("S07: NONE + implicit policy denies; CUSTOM allow + implicit policy allows"
   assert.equal(ctx.authResult.authorized, true);
 });
 
+const ALLOW_INVOKE = { Version: "2012-10-17", Statement: [{ Effect: "Allow", Action: "execute-api:Invoke", Resource: "*" }] };
+
 test("S07: signed request verifies; tampered body and 6-min skew fail", async () => {
   const artifact = restArtifact({ methods: mockMethods({ authorizationType: "SIGNED" }) });
   const credentialPorts = () => basePorts({
     signingCredentials: { resolve: async () => ({ secretAccessKey: SECRET, status: "ACTIVE" }) },
-    signingPolicies: { list: async () => [] },
+    signingPolicies: { list: async () => [ALLOW_INVOKE] },
   });
   const good = await signRequest({
     method: "POST", url: "http://localhost/pets",

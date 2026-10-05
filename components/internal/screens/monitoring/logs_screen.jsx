@@ -73,9 +73,18 @@ export function LogsScreen() {
   }, [live, search]);
 
   useEffect(() => {
-    void search();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.id]);
+    let alive = true;
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(filters)) {
+      if (value) query.set(key, value);
+    }
+    query.set("limit", "50");
+    api(project.id, `?${query.toString()}`).then(
+      (data) => { if (alive) setState({ status: "ready", items: data.items ?? [], error: null }); },
+      (error) => { if (alive) setState({ status: "error", items: [], error: error.message }); },
+    );
+    return () => { alive = false; };
+  }, [project.id, filters]);
 
   const openDetail = useCallback(async (requestId) => {
     try {

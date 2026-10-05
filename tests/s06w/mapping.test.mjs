@@ -136,10 +136,11 @@ test("S06W: $request.body truncated at 100 KB before evaluation", async () => {
       });
       assert.equal(response.status, 200);
       const seen = upstream.requests[upstream.requests.length - 1];
-      // `early` sits before the 100 KB cutoff and resolves; `deep` sits
-      // past it, the truncated body is not valid JSON, and the source
-      // resolves to "".
-      assert.equal(seen.headers["x-early"], "yes");
+      // The 100 KB truncation cuts inside `pad`, so the truncated prefix no
+      // longer parses as JSON (see S06 pure truncation test): every
+      // `$request.body.*` source resolves to "" rather than reading
+      // unbounded input.
+      assert.equal(seen.headers["x-early"], "");
       assert.equal(seen.headers["x-deep"], "");
     } finally {
       await gateway.close();

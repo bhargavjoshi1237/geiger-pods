@@ -33,9 +33,32 @@ test("S10: observability migrations create the telemetry tables with RLS and no 
     assert.ok(all.includes(table), `${table} is missing`);
   }
   assert.ok(all.includes("unique (project_id, api_id, stage, dims_hash, minute, metric)"), "metrics_minute upsert key is missing");
-  assert.ok(all.includes("pods.logs.view"), "logs read policy is missing");
-  assert.ok(all.includes("pods.alarm.write"), "alarm write policy is missing");
-  assert.ok(all.includes("pods.export.write"), "export write policy is missing");
+  // Permission keys must appear inside `create policy` statements (not just
+  // in comments): reads gated on logs/monitoring view, data-trace on
+  // logs.data, alarm writes on alarm.write, sink writes on export.write.
+  const policies = [...all.matchAll(/create\s+policy\s+(\S+)\s+on\s+(\S+)([\s\S]*?);/gi)].map((m) => ({
+    name: m[1],
+    table: m[2],
+    body: m[0],
+  }));
+  assert.ok(policies.length >= 8, `expected RLS policies, saw ${policies.length}`);
+  const has = (table, perm) => policies.some((p) => p.table.includes(table) && p.body.includes(perm));
+  for (const table of ["pods.metrics_minute", "pods.metrics_hour", "pods.access_logs", "pods.trace_spans"]) {
+    assert.ok(
+      has(table, "pods.logs.view") || has(table, "pods.monitoring.view"),
+      `${table} read policy must gate on pods.logs.view or pods.monitoring.view via pods.can`,
+    );
+  }
+  assert.ok(
+    policies.some((p) => p.table.includes("pods.execution_logs") && p.body.includes("pods.logs.data")),
+    "execution_logs policy must require pods.logs.data for data-trace rows",
+  );
+  assert.ok(has("pods.alarms", "pods.alarm.write"), "alarms write policy must require pods.alarm.write");
+  assert.ok(has("pods.notification_channels", "pods.alarm.write"), "notification_channels write policy must require pods.alarm.write");
+  assert.ok(has("pods.log_sinks", "pods.export.write"), "log_sinks write policy must require pods.export.write");
+  assert.ok(has("pods.sampling_rules", "pods.export.write"), "sampling_rules write policy must require pods.export.write");
+  // No membership-only fallback via role_grants: reads/writes go through pods.can/is_member.
+  assert.ok(!/from\s+pods\.role_grants/i.test(all), "policies must use pods.can/is_member, not raw pods.role_grants");
   assert.ok(all.includes("enable row level security"), "RLS is missing");
   assert.ok(all.includes("period_sec > 0 and period_sec % 60 = 0"), "alarm period guard is missing");
   assert.ok(!/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(all), "a private key shipped in a migration");

@@ -112,7 +112,7 @@ test("S06W: validationErrorString is AWS-style and visible to gateway templates"
           response_type: "BAD_REQUEST_BODY",
           status_code: null,
           response_parameters: {},
-          response_templates: { "application/json": '{"detail":$context.error.messageString,"check":$context.error.validationErrorString}' },
+          response_templates: { "application/json": '{"detail":$context.error.messageString,"check":"$util.escapeJavaScript($context.error.validationErrorString)"}' },
         }],
       },
     });

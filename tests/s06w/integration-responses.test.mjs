@@ -14,13 +14,13 @@ const RESOURCES = [
   { id: "res-items", path: "/items" },
 ];
 
-function selectionDraft(upstreamUrl, apiPublicId, uri, integrationResponses, statusCodes) {
+function selectionDraft(upstreamUrl, apiPublicId, uri, integrationResponses, statusCodes, methodParams = {}) {
   return restDraft(upstreamUrl, {
     apiPublicId,
     resources: RESOURCES,
     method: {
       methodResponses: statusCodes.map((statusCode) => ({
-        statusCode, responseParameters: {}, responseModels: {},
+        statusCode, responseParameters: methodParams[statusCode] ?? {}, responseModels: {},
       })),
     },
     integration: {
@@ -53,6 +53,7 @@ test("S06W: integration response selected by backend status regex", async () => 
         },
       ],
       ["200", "500"],
+      { 200: { "method.response.header.X-Sel": true } },
     );
     const artifact = compileOrThrow(draft);
     const { gateway, baseUrl } = await serveArtifact(artifact, { stage: "prod" });
@@ -98,9 +99,9 @@ test("S06W: default integration response used when no pattern matches", async ()
     try {
       const response = await fetch(`${baseUrl}/items`);
       assert.equal(response.status, 200);
-      // Passthrough: the backend echo body is unchanged.
-      const body = await response.json();
-      assert.equal(body.path, "/status/201");
+      // Passthrough: the backend `/status/201` body is plain text.
+      const text = await response.text();
+      assert.equal(text, "status 201");
     } finally {
       await gateway.close();
     }

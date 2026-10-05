@@ -74,7 +74,9 @@ test("S06W: VTL request template transforms on HTTP custom; response template + 
       const sent = JSON.parse(seen.body.toString("utf8"));
       assert.equal(sent.joined, "a,b,c");
       assert.equal(sent.first, "a");
-      assert.equal(sent.safe, 'x\\"y');
+      // `$util.escapeJavaScript('x"y')` renders `x\"y` in the JSON body,
+      // which parses back to the original `x"y`.
+      assert.equal(sent.safe, 'x"y');
       assert.equal(sent.q, "7");
     } finally {
       await gateway.close();

@@ -27,7 +27,13 @@ async function seed() {
   });
   const root = await db.insertResource({ project_id: PROJECT, api_id: api.id, parent_id: null, path_part: "", path: "/" });
   const pets = await db.insertResource({ project_id: PROJECT, api_id: api.id, parent_id: root.id, path_part: "pets", path: "/pets" });
-  await db.insertAuthorizer({ id: "auth-1", api_id: api.id, project_id: PROJECT, name: "custom" });
+  await db.insertAuthorizer({
+    id: "auth-1", api_id: api.id, project_id: PROJECT, name: "custom",
+    type: "TOKEN",
+    identity_source: ["method.request.header.Authorization"],
+    function: { provider: "webhook", url: `${upstream.url}/echo` },
+    result_ttl_seconds: 0, timeout_ms: 5000,
+  });
   const method = await db.insertMethod({
     project_id: PROJECT, api_id: api.id, resource_id: pets.id, http_method: "GET",
     authorization_type: "CUSTOM", authorizer_id: "auth-1", authorization_scopes: ["read"],

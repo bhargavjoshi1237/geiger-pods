@@ -85,8 +85,43 @@ export function MonitoringOverview({ apiId: initialApiId = "", stage: initialSta
   }, [project.id, apiId, stage]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    let alive = true;
+    const scope = `${apiId ? `&apiId=${encodeURIComponent(apiId)}` : ""}${stage ? `&stage=${encodeURIComponent(stage)}` : ""}`;
+    Promise.all([
+      api(project.id, `?metric=Count${scope}&stat=Sum&period=3600`),
+      api(project.id, `?metric=4XXError${scope}&stat=Sum&period=3600`),
+      api(project.id, `?metric=5XXError${scope}&stat=Sum&period=3600`),
+      api(project.id, `?metric=Latency${scope}&stat=p50&period=3600`),
+      api(project.id, `?metric=Latency${scope}&stat=p90&period=3600`),
+      api(project.id, `?metric=Latency${scope}&stat=p99&period=3600`),
+      api(project.id, `?metric=IntegrationLatency${scope}&stat=p90&period=3600`),
+      api(project.id, `?metric=CacheHitCount${scope}&stat=Sum&period=3600`).catch(() => ({ series: [] })),
+      api(project.id, `?metric=CacheMissCount${scope}&stat=Sum&period=3600`).catch(() => ({ series: [] })),
+    ]).then(
+      ([count, errors4xx, errors5xx, p50, p90, p99, integration, cacheHit, cacheMiss]) => {
+        if (!alive) return;
+        const sum = (result) => (result.series ?? []).reduce((total, point) => total + (point.value ?? 0), 0);
+        const hits = sum(cacheHit);
+        const misses = sum(cacheMiss);
+        setState({
+          status: "ready",
+          stats: {
+            count: sum(count),
+            errors4xx: sum(errors4xx),
+            errors5xx: sum(errors5xx),
+            p50: lastValue(p50.series),
+            p90: lastValue(p90.series),
+            p99: lastValue(p99.series),
+            integrationP90: lastValue(integration.series),
+            cacheHitRatio: hits + misses === 0 ? null : hits / (hits + misses),
+          },
+          error: null,
+        });
+      },
+      (error) => { if (alive) setState({ status: "error", stats: null, error: error.message }); },
+    );
+    return () => { alive = false; };
+  }, [project.id, apiId, stage]);
 
   if (!can("pods.monitoring.view")) {
     return <div className="mx-auto w-full space-y-8 px-2 py-4 lg:max-w-[85%] lg:px-0">

@@ -67,7 +67,6 @@ export function UsagePlansScreen() {
       (error) => { if (alive) setState({ status: "error", items: [], error: error.message }); },
     );
     return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.id]);
 
   const create = async () => {
@@ -350,10 +349,14 @@ function PlanKeys({ plan, projectId, writable, busy, setBusy, onChanged }) {
   </div>;
 }
 
-function PlanUsage({ plan, projectId, writable, busy, setBusy }) {
+function initialUsageRange() {
   const today = new Date().toISOString().slice(0, 10);
   const weekAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const [range, setRange] = useState({ start: weekAgo, end: today });
+  return { start: weekAgo, end: today };
+}
+
+function PlanUsage({ plan, projectId, writable, busy, setBusy }) {
+  const [range, setRange] = useState(initialUsageRange);
   const [usage, setUsage] = useState(null);
   const [adjust, setAdjust] = useState({ keyId: "", op: "extend", value: "10" });
   const [adjusting, setAdjusting] = useState(false);

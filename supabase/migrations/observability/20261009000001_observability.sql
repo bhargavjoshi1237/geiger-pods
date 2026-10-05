@@ -9,10 +9,6 @@
 -- `project_settings.log_retention_days`. Trace spans live 7 days.
 --
 -- @up
--- S10 permission gates (enforced in lib/control services, documented here for RLS review):
---   metrics + access logs reads require pods.monitoring.view (fallback pods.logs.view);
---   data-trace bodies require pods.logs.data; alarms require pods.alarm.write;
---   sinks/exports require pods.export.write; audit export requires pods.audit.view.
 create table if not exists pods.metrics_minute (
   project_id uuid not null references public.projects(id) on delete cascade,
   api_id uuid not null references pods.apis(id) on delete cascade,
@@ -244,55 +240,77 @@ alter table pods.alarm_history enable row level security;
 alter table pods.log_sinks enable row level security;
 alter table pods.sampling_rules enable row level security;
 
--- Read-your-own-project for members; writes go through the service role
--- (runtime flushers, jobs) or RLS-checked user queries. Mirrors the
--- foundation pattern: user reads scoped by project membership, no direct
--- user writes to rollup tables.
+-- Telemetry reads are permission-gated (like processing/ RLS): members read
+-- through `pods.is_member`, but sensitive telemetry additionally requires the
+-- operation key via `pods.can`. Telemetry inserts come only from the service
+-- role (runtime flushers/jobs bypass RLS); no authenticated INSERT policy
+-- exists for metrics/access/execution/trace, so users cannot write them.
+-- Data-trace bodies (`execution_logs` with `data_trace = true`) require
+-- `pods.logs.data`; other execution rows require `pods.logs.view`.
+drop policy if exists metrics_minute_select on pods.metrics_minute;
 create policy metrics_minute_select on pods.metrics_minute for select to authenticated
-  using (project_id in (select project_id from pods.role_grants where user_id = auth.uid() and status = 'active')
-     or project_id in (select id from public.projects where created_by = auth.uid()));
+  using (pods.can('pods.monitoring.view', project_id) or pods.can('pods.logs.view', project_id));
+drop policy if exists metrics_hour_select on pods.metrics_hour;
 create policy metrics_hour_select on pods.metrics_hour for select to authenticated
-  using (project_id in (select project_id from pods.role_grants where user_id = auth.uid() and status = 'active')
-     or project_id in (select id from public.projects where created_by = auth.uid()));
+  using (pods.can('pods.monitoring.view', project_id) or pods.can('pods.logs.view', project_id));
+drop policy if exists access_logs_select on pods.access_logs;
 create policy access_logs_select on pods.access_logs for select to authenticated
-  using (project_id in (select project_id from pods.role_grants where user_id = auth.uid() and status = 'active')
-     or project_id in (select id from public.projects where created_by = auth.uid()));
+  using (pods.can('pods.monitoring.view', project_id) or pods.can('pods.logs.view', project_id));
+drop policy if exists execution_logs_select on pods.execution_logs;
 create policy execution_logs_select on pods.execution_logs for select to authenticated
-  using (project_id in (select project_id from pods.role_grants where user_id = auth.uid() and status = 'active')
-     or project_id in (select id from public.projects where created_by = auth.uid()));
+  using (
+    (coalesce(data_trace, false) = false and (pods.can('pods.monitoring.view', project_id) or pods.can('pods.logs.view', project_id)))
+    or (coalesce(data_trace, false) = true and pods.can('pods.logs.data', project_id))
+  );
+drop policy if exists trace_spans_select on pods.trace_spans;
 create policy trace_spans_select on pods.trace_spans for select to authenticated
-  using (project_id in (select project_id from pods.role_grants where user_id = auth.uid() and status = 'active')
-     or project_id in (select id from public.projects where created_by = auth.uid()));
-create policy alarms_all on pods.alarms for all to authenticated
-  using (project_id in (select project_id from pods.role_grants where user_id = auth.uid() and status = 'active')
-     or project_id in (select id from public.projects where created_by = auth.uid()))
-  with check (project_id in (select project_id from pods.role_grants where user_id = auth.uid() and status = 'active')
-     or project_id in (select id from public.projects where created_by = auth.uid()));
+  using (pods.can('pods.monitoring.view', project_id) or pods.can('pods.logs.view', project_id));
+drop policy if exists alarm_history_select on pods.alarm_history;
 create policy alarm_history_select on pods.alarm_history for select to authenticated
-  using (project_id in (select project_id from pods.role_grants where user_id = auth.uid() and status = 'active')
-     or project_id in (select id from public.projects where created_by = auth.uid()));
-create policy notification_channels_all on pods.notification_channels for all to authenticated
-  using (project_id in (select project_id from pods.role_grants where user_id = auth.uid() and status = 'active')
-     or project_id in (select id from public.projects where created_by = auth.uid()))
-  with check (project_id in (select project_id from pods.role_grants where user_id = auth.uid() and status = 'active')
-     or project_id in (select id from public.projects where created_by = auth.uid()));
-create policy log_sinks_all on pods.log_sinks for all to authenticated
-  using (project_id in (select project_id from pods.role_grants where user_id = auth.uid() and status = 'active')
-     or project_id in (select id from public.projects where created_by = auth.uid()))
-  with check (project_id in (select project_id from pods.role_grants where user_id = auth.uid() and status = 'active')
-     or project_id in (select id from public.projects where created_by = auth.uid()));
-create policy sampling_rules_all on pods.sampling_rules for all to authenticated
-  using (project_id in (select project_id from pods.role_grants where user_id = auth.uid() and status = 'active')
-     or project_id in (select id from public.projects where created_by = auth.uid()))
-  with check (project_id in (select project_id from pods.role_grants where user_id = auth.uid() and status = 'active')
-     or project_id in (select id from public.projects where created_by = auth.uid()));
+  using (pods.can('pods.monitoring.view', project_id));
+drop policy if exists alarms_read on pods.alarms;
+create policy alarms_read on pods.alarms
+  for select to authenticated using (pods.can('pods.monitoring.view', project_id));
+drop policy if exists alarms_write on pods.alarms;
+create policy alarms_write on pods.alarms
+  for all to authenticated
+  using (pods.can('pods.alarm.write', project_id))
+  with check (pods.can('pods.alarm.write', project_id));
+drop policy if exists notification_channels_read on pods.notification_channels;
+create policy notification_channels_read on pods.notification_channels
+  for select to authenticated using (pods.can('pods.monitoring.view', project_id));
+drop policy if exists notification_channels_write on pods.notification_channels;
+create policy notification_channels_write on pods.notification_channels
+  for all to authenticated
+  using (pods.can('pods.alarm.write', project_id))
+  with check (pods.can('pods.alarm.write', project_id));
+drop policy if exists log_sinks_read on pods.log_sinks;
+create policy log_sinks_read on pods.log_sinks
+  for select to authenticated using (pods.can('pods.monitoring.view', project_id));
+drop policy if exists log_sinks_write on pods.log_sinks;
+create policy log_sinks_write on pods.log_sinks
+  for all to authenticated
+  using (pods.can('pods.export.write', project_id))
+  with check (pods.can('pods.export.write', project_id));
+drop policy if exists sampling_rules_read on pods.sampling_rules;
+create policy sampling_rules_read on pods.sampling_rules
+  for select to authenticated using (pods.can('pods.monitoring.view', project_id));
+drop policy if exists sampling_rules_write on pods.sampling_rules;
+create policy sampling_rules_write on pods.sampling_rules
+  for all to authenticated
+  using (pods.can('pods.export.write', project_id))
+  with check (pods.can('pods.export.write', project_id));
 
 -- @down
-drop policy if exists sampling_rules_all on pods.sampling_rules;
-drop policy if exists log_sinks_all on pods.log_sinks;
-drop policy if exists notification_channels_all on pods.notification_channels;
+drop policy if exists sampling_rules_write on pods.sampling_rules;
+drop policy if exists sampling_rules_read on pods.sampling_rules;
+drop policy if exists log_sinks_write on pods.log_sinks;
+drop policy if exists log_sinks_read on pods.log_sinks;
+drop policy if exists notification_channels_write on pods.notification_channels;
+drop policy if exists notification_channels_read on pods.notification_channels;
 drop policy if exists alarm_history_select on pods.alarm_history;
-drop policy if exists alarms_all on pods.alarms;
+drop policy if exists alarms_write on pods.alarms;
+drop policy if exists alarms_read on pods.alarms;
 drop policy if exists trace_spans_select on pods.trace_spans;
 drop policy if exists execution_logs_select on pods.execution_logs;
 drop policy if exists access_logs_select on pods.access_logs;

@@ -147,7 +147,19 @@ function PlanDetail({ projectId, plan, can, onClose, onChanged }) {
     }
   }, [projectId, plan.id]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let alive = true;
+    call(projectId, `/usage-plans/${encodeURIComponent(plan.id)}`).then(
+      (data) => {
+        if (!alive) return;
+        setDetail({ status: "ready", data });
+        setThrottleText(JSON.stringify(data.throttle ?? null));
+        setQuotaText(JSON.stringify(data.quota ?? null));
+      },
+      (error) => { if (alive) setDetail({ status: "error", data: null, error: error.message }); },
+    );
+    return () => { alive = false; };
+  }, [projectId, plan.id]);
 
   const saveSettings = async () => {
     let throttle = null;

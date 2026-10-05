@@ -82,8 +82,23 @@ export function StageLoggingTab({ apiId, stageName }) {
   }, [path]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    let alive = true;
+    fetch(path).then(
+      async (response) => {
+        const data = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(data?.error?.message ?? `Request failed (${response.status}).`);
+        if (!alive) return;
+        setState({ status: "ready", settings: data, error: null });
+        setEnabled(Boolean(data.accessLog?.enabled));
+        setFormat(data.accessLog?.format ?? "");
+        setLevel(data.methodSettings?.default?.loggingLevel ?? "OFF");
+        setDataTrace(Boolean(data.methodSettings?.default?.dataTraceEnabled));
+        setTracing(Boolean(data.tracingEnabled));
+      },
+      (error) => { if (alive) setState({ status: "error", settings: null, error: error.message }); },
+    );
+    return () => { alive = false; };
+  }, [path]);
 
   if (!can("pods.monitoring.view")) {
     return <SectionCard><EmptyState icon={LockKeyhole} title="Access unavailable" description="Your current team access does not allow this screen." /></SectionCard>;
