@@ -29,16 +29,25 @@ test("only the authenticated creator can enter an org-less project", () => {
   assert.equal(access.inheritedRole({ organizationId: null, createdBy: null }, [], null), null);
 });
 
-test("every inherited role is read-only and missing identity fails closed", () => {
+test("inherited roles follow the S02 permission matrix and missing identity fails closed", () => {
   assert.equal(typeof access.inheritedAuthorization, "function");
+  const optionsFor = (role) => ({ config, ...access.inheritedAuthorization(role, "u", "project"), actorId: "u" });
   for (const role of ["owner", "admin", "manager", "member"]) {
-    const binding = access.inheritedAuthorization(role, "u", "project");
-    const options = { config, ...binding, actorId: "u" };
+    const options = optionsFor(role);
     assert.equal(can("pods.overview.view", options), true);
     assert.equal(can("pods.settings.view", options), true);
-    assert.equal(can("pods.api.create", options), false);
-    assert.equal(can("pods.deployment.publish", options), false);
+    assert.equal(can("pods.nope.missing", options), false);
   }
+  assert.equal(can("pods.api.create", optionsFor("owner")), true);
+  assert.equal(can("pods.role.grant", optionsFor("owner")), true);
+  assert.equal(can("pods.secret.write", optionsFor("admin")), true);
+  assert.equal(can("pods.role.grant", optionsFor("admin")), false);
+  assert.equal(can("pods.route.write", optionsFor("manager")), true);
+  assert.equal(can("pods.stage.delete", optionsFor("manager")), false);
+  assert.equal(can("pods.secret.write", optionsFor("manager")), false);
+  assert.equal(can("pods.secret.use", optionsFor("manager")), true);
+  assert.equal(can("pods.api.create", optionsFor("member")), false);
+  assert.equal(can("pods.secret.use", optionsFor("member")), false);
   const options = { config, ...access.inheritedAuthorization(null, null, null) };
   assert.equal(can("pods.overview.view", options), false);
 });

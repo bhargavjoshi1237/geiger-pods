@@ -1,0 +1,16 @@
+{
+  "name": "@pods/connector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pods Connector agent: dials out to the gateway and relays private integrations (S04).",
+  "bin": {
+    "pods-connector": "./agent.mjs"
+  },
+  "scripts": {
+    "start": "node agent.mjs"
+  },
+  "peerDependencies": {
+    "ws": "8.22.0"
+  }
+}

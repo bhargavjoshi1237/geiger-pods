@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pods.geiger/schemas/pods-config/v1",
+  "title": "Pods stack file (pods.yaml)",
+  "type": "object",
+  "required": ["version", "stack"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "stack": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$" },
+    "apis": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": true,
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "protocol": { "enum": ["REST", "HTTP", "WEBSOCKET"] },
+          "description": { "type": "string", "maxLength": 1024 },
+          "openapi": { "type": "string" },
+          "settings": { "type": "object" },
+          "authorizers": { "type": "array" },
+          "stages": { "type": "array" }
+        }
+      }
+    },
+    "usagePlans": { "type": "array" },
+    "domains": { "type": "array" },
+    "secrets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    }
+  }
+}
