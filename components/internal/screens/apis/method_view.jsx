@@ -2,9 +2,8 @@
 
 // REST method detail (C1 wiring for the S03 resources tab): the S07 auth
 // picker, the S06 method request / method response panels with real
-// persistence, the integration passthrough + integration-response controls
-// (the persistable S06 surface: mapping tables and VTL templates have no
-// management-API writer yet, so those stay out), and the S05 test-invoke tab.
+// persistence, the S06 integration request/response editors persisted through
+// the B3 management endpoints, and the S05 test-invoke tab.
 
 import { useEffect, useState } from "react";
 import { ListOrdered } from "lucide-react";
@@ -20,7 +19,8 @@ import { useRbac } from "@/context/rbac-context";
 import { fetchApis } from "./api_list";
 import { MethodAuthPicker } from "../auth/auth_picker";
 import { MethodRequestEditor, MethodResponseEditor } from "../processing/method_panels";
-import { PassthroughPicker } from "../processing/parameter_mapping_editor";
+import { PassthroughPicker, RestMappingEditor } from "../processing/parameter_mapping_editor";
+import { TemplateEditor } from "../processing/template_editor";
 import { TestTab } from "../releases/test_tab";
 
 function MethodRequestSection({ api, resourceId, method, validators, models, onSaved }) {
@@ -151,7 +151,10 @@ function IntegrationSection({ api, method, onChanged }) {
   const [state, setState] = useState(method.integrationId
     ? { status: "loading", integration: null, responses: [], error: null }
     : { status: "ready", integration: null, responses: [], error: null });
-  const [passthrough, setPassthrough] = useState("WHEN_NO_MATCH");
+  const [requestDraft, setRequestDraft] = useState({ requestParameters: {}, requestTemplates: {}, passthroughBehavior: "WHEN_NO_MATCH", contentHandling: "" });
+  const [newTemplateType, setNewTemplateType] = useState("application/json");
+  const [selectedResponseId, setSelectedResponseId] = useState(null);
+  const [responseDraft, setResponseDraft] = useState({ statusCode: "200", selectionPattern: "", responseParameters: {}, responseTemplates: {}, contentHandling: "" });
   const [statusCode, setStatusCode] = useState("200");
   const [pattern, setPattern] = useState("");
   const [busy, setBusy] = useState(false);
@@ -165,8 +168,25 @@ function IntegrationSection({ api, method, onChanged }) {
         const integration = await fetchApis(project.id, `/${encodeURIComponent(apiRef)}/integrations/${encodeURIComponent(method.integrationId)}`);
         const responses = await fetchApis(project.id, `/${encodeURIComponent(apiRef)}/integrations/${encodeURIComponent(method.integrationId)}/responses`);
         if (!alive) return;
-        setState({ status: "ready", integration, responses: responses.items ?? [], error: null });
-        setPassthrough(integration.passthroughBehavior ?? "WHEN_NO_MATCH");
+        const items = responses.items ?? [];
+        setState({ status: "ready", integration, responses: items, error: null });
+        setRequestDraft({
+          requestParameters: integration.requestParameters ?? {},
+          requestTemplates: integration.requestTemplates ?? {},
+          passthroughBehavior: integration.passthroughBehavior ?? "WHEN_NO_MATCH",
+          contentHandling: integration.contentHandling ?? "",
+        });
+        const first = items[0];
+        if (first) {
+          setSelectedResponseId(first.id);
+          setResponseDraft({
+            statusCode: String(first.statusCode),
+            selectionPattern: first.selectionPattern ?? "",
+            responseParameters: first.responseParameters ?? {},
+            responseTemplates: first.responseTemplates ?? {},
+            contentHandling: first.contentHandling ?? "",
+          });
+        }
       } catch (error) {
         if (alive) setState({ status: "error", integration: null, responses: [], error: error.message });
       }
@@ -182,16 +202,77 @@ function IntegrationSection({ api, method, onChanged }) {
     return <SectionCard><EmptyState icon={ListOrdered} title="Integration unavailable" description={state.error ?? "Not found."} /></SectionCard>;
   }
 
-  const savePassthrough = async () => {
+  const reload = async () => {
+    const integration = await fetchApis(project.id, `/${encodeURIComponent(apiRef)}/integrations/${encodeURIComponent(method.integrationId)}`);
+    const responses = await fetchApis(project.id, `/${encodeURIComponent(apiRef)}/integrations/${encodeURIComponent(method.integrationId)}/responses`);
+    const items = responses.items ?? [];
+    setState({ status: "ready", integration, responses: items, error: null });
+    setRequestDraft({
+      requestParameters: integration.requestParameters ?? {},
+      requestTemplates: integration.requestTemplates ?? {},
+      passthroughBehavior: integration.passthroughBehavior ?? "WHEN_NO_MATCH",
+      contentHandling: integration.contentHandling ?? "",
+    });
+    return { integration, items };
+  };
+
+  const saveRequest = async () => {
     setBusy(true);
     try {
       await fetchApis(project.id, `/${encodeURIComponent(apiRef)}/integrations/${encodeURIComponent(method.integrationId)}`, {
         method: "PATCH",
         headers: { "If-Match": String(state.integration.version) },
-        body: JSON.stringify({ passthroughBehavior: passthrough }),
+        body: JSON.stringify({
+          requestParameters: requestDraft.requestParameters ?? {},
+          requestTemplates: requestDraft.requestTemplates ?? {},
+          passthroughBehavior: requestDraft.passthroughBehavior ?? "WHEN_NO_MATCH",
+          ...(requestDraft.contentHandling ? { contentHandling: requestDraft.contentHandling } : {}),
+        }),
       });
-      toast.success("Saved passthrough behavior.");
+      toast.success("Saved integration request mapping and templates.");
+      await reload();
       onChanged?.();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pickResponse = (id) => {
+    setSelectedResponseId(id);
+    const found = state.responses.find((entry) => entry.id === id);
+    if (found) {
+      setResponseDraft({
+        statusCode: String(found.statusCode),
+        selectionPattern: found.selectionPattern ?? "",
+        responseParameters: found.responseParameters ?? {},
+        responseTemplates: found.responseTemplates ?? {},
+        contentHandling: found.contentHandling ?? "",
+      });
+    }
+  };
+
+  const saveResponse = async () => {
+    const existing = state.responses.find((entry) => entry.id === selectedResponseId);
+    if (!existing) {
+      toast.error("Select an integration response first.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await fetchApis(project.id, `/${encodeURIComponent(apiRef)}/integrations/${encodeURIComponent(method.integrationId)}/responses/${encodeURIComponent(existing.id)}`, {
+        method: "PATCH",
+        headers: { "If-Match": String(existing.version) },
+        body: JSON.stringify({
+          selectionPattern: responseDraft.selectionPattern || null,
+          responseParameters: responseDraft.responseParameters ?? {},
+          responseTemplates: responseDraft.responseTemplates ?? {},
+          ...(responseDraft.contentHandling ? { contentHandling: responseDraft.contentHandling } : { contentHandling: null }),
+        }),
+      });
+      toast.success(`Saved ${responseDraft.statusCode} integration response.`);
+      await reload();
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -207,8 +288,9 @@ function IntegrationSection({ api, method, onChanged }) {
         body: JSON.stringify({ statusCode, ...(pattern.trim() ? { selectionPattern: pattern.trim() } : {}) }),
       });
       toast.success(`Added ${statusCode} integration response.`);
-      const responses = await fetchApis(project.id, `/${encodeURIComponent(apiRef)}/integrations/${encodeURIComponent(method.integrationId)}/responses`);
-      setState((current) => ({ ...current, responses: responses.items ?? [] }));
+      const { items } = await reload();
+      const created = items.find((entry) => String(entry.statusCode) === String(statusCode));
+      if (created) pickResponse(created.id);
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -221,8 +303,8 @@ function IntegrationSection({ api, method, onChanged }) {
     try {
       await fetchApis(project.id, `/${encodeURIComponent(apiRef)}/integrations/${encodeURIComponent(method.integrationId)}/responses/${encodeURIComponent(response.id)}`, { method: "DELETE" });
       toast.success("Deleted integration response.");
-      const responses = await fetchApis(project.id, `/${encodeURIComponent(apiRef)}/integrations/${encodeURIComponent(method.integrationId)}/responses`);
-      setState((current) => ({ ...current, responses: responses.items ?? [] }));
+      await reload();
+      setSelectedResponseId(null);
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -231,18 +313,119 @@ function IntegrationSection({ api, method, onChanged }) {
   };
 
   return <div className="space-y-8">
-    <SectionCard title="Integration request" description="Passthrough behavior for this integration. Parameter mapping tables and VTL templates need the S06 control-plane writer (no management endpoint yet).">
-      <PassthroughPicker value={passthrough} onChange={setPassthrough} />
-      {writable ? <div className="pt-3"><Button size="sm" disabled={busy} onClick={savePassthrough}>{busy ? "Saving…" : "Save integration request"}</Button></div> : null}
+    <SectionCard title="Integration request" description="Parameter mapping (integration.request.*), VTL templates per content type, passthrough behavior and content handling.">
+      <div className="space-y-4">
+        <RestMappingEditor
+          title="Request mapping"
+          description="integration.request.{header|querystring|path}.<name> from method.request.*, 'static', context.* or stageVariables.*."
+          rows={requestDraft.requestParameters ?? {}}
+          onChange={(requestParameters) => setRequestDraft((current) => ({ ...current, requestParameters }))}
+          keyPlaceholder="integration.request.header.X-Target"
+          suggestions={["method.request.header.", "method.request.querystring.", "method.request.path.", "method.request.body", "context.", "stageVariables."]}
+        />
+        <PassthroughPicker value={requestDraft.passthroughBehavior} onChange={(passthroughBehavior) => setRequestDraft((current) => ({ ...current, passthroughBehavior }))} />
+        <div className="space-y-2">
+          <Label htmlFor={`ir-content-${method.id}`}>Content handling (request)</Label>
+          <select
+            id={`ir-content-${method.id}`}
+            className="w-full rounded border p-2 text-sm"
+            value={requestDraft.contentHandling ?? ""}
+            onChange={(event) => setRequestDraft((current) => ({ ...current, contentHandling: event.target.value || null }))}
+          >
+            <option value="">Passthrough (default)</option>
+            <option value="CONVERT_TO_TEXT">CONVERT_TO_TEXT</option>
+            <option value="CONVERT_TO_BINARY">CONVERT_TO_BINARY</option>
+          </select>
+        </div>
+        {Object.entries(requestDraft.requestTemplates ?? {}).map(([contentType, template]) => (
+          <div key={contentType} className="space-y-2">
+            <TemplateEditor
+              contentType={contentType}
+              value={template}
+              onChange={(next) => setRequestDraft((current) => ({ ...current, requestTemplates: { ...current.requestTemplates, [contentType]: next } }))}
+            />
+            {writable ? <Button variant="outline" size="sm" disabled={busy} onClick={() => setRequestDraft((current) => {
+              const next = { ...(current.requestTemplates ?? {}) };
+              delete next[contentType];
+              return { ...current, requestTemplates: next };
+            })}>Remove {contentType} template</Button> : null}
+          </div>
+        ))}
+        {writable ? <div className="flex flex-wrap items-end gap-2">
+          <div className="space-y-2">
+            <Label htmlFor={`new-template-${method.id}`}>New template content type</Label>
+            <Input id={`new-template-${method.id}`} value={newTemplateType} onChange={(event) => setNewTemplateType(event.target.value)} placeholder="application/json" className="w-56 font-mono text-xs" />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy || !newTemplateType.trim()}
+            onClick={() => setRequestDraft((current) => ({ ...current, requestTemplates: { ...(current.requestTemplates ?? {}), [newTemplateType.trim()]: current.requestTemplates?.[newTemplateType.trim()] ?? "" } }))}
+          >Add template</Button>
+        </div> : null}
+        {writable ? <div className="pt-1"><Button size="sm" disabled={busy} onClick={saveRequest}>{busy ? "Saving…" : "Save integration request"}</Button></div> : null}
+      </div>
     </SectionCard>
-    <SectionCard title="Integration responses" description="Selection patterns match the backend status (or function errorMessage); the default response has an empty pattern.">
-      {state.responses.length === 0 ? <p className="text-xs text-muted-foreground">No integration responses yet.</p> : <ul className="space-y-2">
-        {state.responses.map((response) => <li key={response.id} className="flex flex-wrap items-center gap-2 text-xs">
-          <Badge variant="outline">{response.statusCode}</Badge>
-          <code className="font-mono text-muted-foreground">{response.selectionPattern || "(default)"}</code>
-          {writable ? <Button variant="outline" size="sm" disabled={busy} onClick={() => removeResponse(response)}>Delete</Button> : null}
-        </li>)}
-      </ul>}
+    <SectionCard title="Integration responses" description="Selection patterns match the backend status (or function errorMessage); the default response has an empty pattern. Mapping tables use method.response.header.* and VTL templates render per Accept.">
+      {state.responses.length === 0 ? <p className="text-xs text-muted-foreground">No integration responses yet.</p> : <div className="flex flex-wrap items-center gap-2">
+        {state.responses.map((response) => <Button key={response.id} variant={response.id === selectedResponseId ? "default" : "outline"} size="sm" onClick={() => pickResponse(response.id)}>{response.statusCode}</Button>)}
+      </div>}
+      {selectedResponseId ? <div className="mt-4 space-y-4">
+        <div className="grid gap-3">
+          <div className="space-y-2">
+            <Label htmlFor={`ir-edit-pattern-${method.id}`}>Selection pattern (regex, empty = default)</Label>
+            <Input id={`ir-edit-pattern-${method.id}`} value={responseDraft.selectionPattern ?? ""} onChange={(event) => setResponseDraft((current) => ({ ...current, selectionPattern: event.target.value }))} placeholder="5\d\d" spellCheck={false} className="font-mono text-xs" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`ir-edit-content-${method.id}`}>Content handling (response)</Label>
+            <select
+              id={`ir-edit-content-${method.id}`}
+              className="w-full rounded border p-2 text-sm"
+              value={responseDraft.contentHandling ?? ""}
+              onChange={(event) => setResponseDraft((current) => ({ ...current, contentHandling: event.target.value || null }))}
+            >
+              <option value="">Passthrough (default)</option>
+              <option value="CONVERT_TO_TEXT">CONVERT_TO_TEXT</option>
+              <option value="CONVERT_TO_BINARY">CONVERT_TO_BINARY</option>
+            </select>
+          </div>
+        </div>
+        <RestMappingEditor
+          title="Response mapping"
+          description="method.response.header.<name> from integration.response.* — the header must be declared on the 200 method response."
+          rows={responseDraft.responseParameters ?? {}}
+          onChange={(responseParameters) => setResponseDraft((current) => ({ ...current, responseParameters }))}
+          keyPlaceholder="method.response.header.X-Reply"
+          suggestions={["integration.response.header.", "integration.response.body", "context.", "stageVariables."]}
+        />
+        {Object.entries(responseDraft.responseTemplates ?? {}).map(([contentType, template]) => (
+          <TemplateEditor
+            key={contentType}
+            contentType={contentType}
+            value={template}
+            onChange={(next) => setResponseDraft((current) => ({ ...current, responseTemplates: { ...current.responseTemplates, [contentType]: next } }))}
+          />
+        ))}
+        <div className="flex flex-wrap gap-2">
+          {writable ? <Button size="sm" disabled={busy} onClick={saveResponse}>{busy ? "Saving…" : `Save ${responseDraft.statusCode} response`}</Button> : null}
+          {writable ? <Button variant="outline" size="sm" disabled={busy} onClick={() => {
+            const existing = state.responses.find((entry) => entry.id === selectedResponseId);
+            if (existing) removeResponse(existing);
+          }}>Delete</Button> : null}
+          {writable ? <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => setResponseDraft((current) => ({ ...current, responseTemplates: { ...(current.responseTemplates ?? {}), "application/json": current.responseTemplates?.["application/json"] ?? "" } }))}
+          >Add application/json template</Button> : null}
+        </div>
+        <ul className="space-y-1 pt-2">
+          {state.responses.map((response) => <li key={response.id} className="flex flex-wrap items-center gap-2 text-xs">
+            <Badge variant="outline">{response.statusCode}</Badge>
+            <code className="font-mono text-muted-foreground">{response.selectionPattern || "(default)"}</code>
+          </li>)}
+        </ul>
+      </div> : null}
       {writable ? <div className="flex flex-wrap items-end gap-2 pt-3">
         <div className="space-y-2">
           <Label htmlFor={`ir-status-${method.id}`}>Status</Label>

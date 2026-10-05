@@ -19,6 +19,7 @@ import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
+import { HttpMappingEditor } from "../processing/parameter_mapping_editor";
 
 const TYPES = ["HTTP_PROXY", "HTTP", "MOCK", "FUNCTION_PROXY", "FUNCTION", "AWS_SERVICE"];
 
@@ -64,6 +65,11 @@ function IntegrationForm({ protocol, initial, connectors, onSubmit, submitting }
   const [secretRef, setSecretRef] = useState(initial?.backendAuth?.secretRef ?? "");
   const [headerName, setHeaderName] = useState(initial?.backendAuth?.headerName ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
+  const [mapping, setMapping] = useState({
+    request: initial?.requestParameters ?? {},
+    responses: initial?.responseParameters ?? {},
+  });
+  const [templateSelectionExpression, setTemplateSelectionExpression] = useState(initial?.templateSelectionExpression ?? "");
   const uriError = useMemo(() => ((type === "HTTP_PROXY" || type === "HTTP") ? validateUri(uri) : null), [type, uri]);
   const max = timeoutMax(protocol);
   return <form className="space-y-4" onSubmit={(event) => {
@@ -81,6 +87,8 @@ function IntegrationForm({ protocol, initial, connectors, onSubmit, submitting }
       tls: { insecureSkipVerification: insecureSkip, serverNameToVerify: serverName || null },
       ...(authType ? { backendAuth: { type: authType, secretRef: secretRef || undefined, headerName: headerName || undefined } } : {}),
       ...(description ? { description } : {}),
+      ...(protocol === "HTTP" ? { requestParameters: mapping.request ?? {}, responseParameters: mapping.responses ?? {} } : {}),
+      ...(protocol === "WEBSOCKET" && templateSelectionExpression ? { templateSelectionExpression } : {}),
     });
   }}>
     <div className="space-y-2">
@@ -147,6 +155,11 @@ function IntegrationForm({ protocol, initial, connectors, onSubmit, submitting }
       <Label htmlFor="integration-description">Description (optional)</Label>
       <Textarea id="integration-description" value={description} onChange={(event) => setDescription(event.target.value)} rows={2} />
     </div>
+    {protocol === "HTTP" ? <HttpMappingEditor request={mapping.request} responses={mapping.responses} onChange={setMapping} /> : null}
+    {protocol === "WEBSOCKET" ? <div className="space-y-2">
+      <Label htmlFor="integration-template-selection">Template selection expression (WebSocket)</Label>
+      <Input id="integration-template-selection" value={templateSelectionExpression} onChange={(event) => setTemplateSelectionExpression(event.target.value)} placeholder="$default" spellCheck={false} className="font-mono" />
+    </div> : null}
     <DialogFooter>
       <Button type="submit" disabled={submitting}>{submitting ? "Saving…" : initial ? "Save changes" : "Create integration"}</Button>
     </DialogFooter>

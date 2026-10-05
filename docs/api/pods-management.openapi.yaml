@@ -236,6 +236,16 @@ paths:
         2XX:
           description: Success envelope (JSON).
   /projects/{projectId}/apis/{apiId}/integrations/{integrationId}/responses/{responseId}:
+    get:
+      operationId: get_projects_projectId_apis_apiId_integrations_integrationId_responses_responseId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    patch:
+      operationId: patch_projects_projectId_apis_apiId_integrations_integrationId_responses_responseId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
     delete:
       operationId: delete_projects_projectId_apis_apiId_integrations_integrationId_responses_responseId
       responses:
@@ -353,6 +363,12 @@ paths:
   /projects/{projectId}/apis/{apiId}/resource-policy/simulate:
     post:
       operationId: post_projects_projectId_apis_apiId_resource_policy_simulate
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/resources/{resourceId}/enable-cors:
+    post:
+      operationId: post_projects_projectId_apis_apiId_resources_resourceId_enable_cors
       responses:
         2XX:
           description: Success envelope (JSON).

@@ -15,6 +15,7 @@ import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
 import { fetchApis } from "./api_list";
 import { MethodDetail } from "./method_view";
+import { EnableCorsDialog } from "../processing/cors_editor";
 
 const METHOD_OPTIONS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "ANY"];
 
@@ -36,6 +37,7 @@ export function ResourcesTab({ api }) {
   const [pathPart, setPathPart] = useState("");
   const [methodName, setMethodName] = useState("GET");
   const [busy, setBusy] = useState(false);
+  const [corsOpen, setCorsOpen] = useState(false);
 
   const loadResources = useCallback(async () => {
     const data = await fetchApis(project.id, `${base}/resources?limit=100`);
@@ -142,6 +144,7 @@ export function ResourcesTab({ api }) {
         title={selected ? `Methods on ${selected.path}` : "Methods"}
         description={selected ? "Exact method wins; ANY covers the rest. HEAD never falls back to GET." : "Select a resource."}
         actions={writable && selected ? <div className="flex gap-2">
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => setCorsOpen(true)}>Enable CORS</Button>
           <Select value={methodName} onValueChange={setMethodName}>
             <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
             <SelectContent>{METHOD_OPTIONS.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
@@ -193,6 +196,14 @@ export function ResourcesTab({ api }) {
           )}
         ><Trash2 className="size-4" />Delete branch (recursive)</Button>
       </SectionCard> : null}
+      <EnableCorsDialog
+        open={corsOpen}
+        onOpenChange={setCorsOpen}
+        onConfirm={(input) => mutate(
+          () => fetchApis(project.id, `${base}/resources/${encodeURIComponent(selected.id)}/enable-cors`, { method: "POST", body: JSON.stringify(input) }),
+          `Enabled CORS on ${selected.path}.`,
+        )}
+      />
     </div>
     <Dialog open={creating} onOpenChange={setCreating}>
       <DialogContent>
