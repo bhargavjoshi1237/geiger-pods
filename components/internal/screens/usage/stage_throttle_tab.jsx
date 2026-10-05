@@ -22,8 +22,8 @@ async function call(projectId, apiId, path, options = {}) {
 
 /**
  * Stage throttling tab (S08 §7, embedded in the S05 stage detail by the
- * orchestrator): default rate/burst plus per-method (REST `"/path/METHOD"`,
- * `"*/*"` default) or per-route (HTTP/WebSocket) overrides, validated
+ * orchestrator): default rate/burst plus per-method (REST "/path/METHOD",
+ * star-slash-star default) or per-route (HTTP/WebSocket) overrides, validated
  * against the project throttle. Standalone export; navigation wiring is the
  * orchestrator's.
  */

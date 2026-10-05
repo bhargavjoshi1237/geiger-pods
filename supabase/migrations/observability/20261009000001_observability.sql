@@ -9,6 +9,10 @@
 -- `project_settings.log_retention_days`. Trace spans live 7 days.
 --
 -- @up
+-- S10 permission gates (enforced in lib/control services, documented here for RLS review):
+--   metrics + access logs reads require pods.monitoring.view (fallback pods.logs.view);
+--   data-trace bodies require pods.logs.data; alarms require pods.alarm.write;
+--   sinks/exports require pods.export.write; audit export requires pods.audit.view.
 create table if not exists pods.metrics_minute (
   project_id uuid not null references public.projects(id) on delete cascade,
   api_id uuid not null references pods.apis(id) on delete cascade,

@@ -1,5 +1,5 @@
 import { route } from "@/lib/control/http.mjs";
-import { getStageThrottle, updateStageThrottle } from "@/lib/control/usage.mjs";
+import { getStageThrottle, updateStageThrottle } from "@/lib/control/usage-plans.mjs";
 
 export const runtime = "nodejs";
 

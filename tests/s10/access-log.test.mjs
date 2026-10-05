@@ -23,7 +23,7 @@ test("S10: CLF and JSON presets render exactly the AWS strings for a fixture con
   const clf = renderAccessLog(PRESETS.CLF, fixtureCtx());
   assert.equal(clf, '192.0.2.1 - - [12/Oct/2026:12:00:00 +0000] "GET /pets https" 200 142 c6af9ac6-7b61-11e6-9a41-93e8deadbeef');
   const json = JSON.parse(renderAccessLog(PRESETS.JSON, fixtureCtx()));
-  assert.equal(json, {
+  assert.deepEqual(json, {
     requestId: "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
     ip: "192.0.2.1",
     caller: "-",
