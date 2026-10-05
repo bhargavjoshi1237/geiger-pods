@@ -2,6 +2,7 @@ import { route } from "@/lib/control/http.mjs";
 import { createControlDb } from "@/lib/control/supabase-db.mjs";
 import { withAuthTables } from "@/lib/control/auth-db.mjs";
 import { listSigningCredentials, createSigningCredential } from "@/lib/control/signing-credentials.mjs";
+import { parseTagFilters } from "@/lib/control/tags.mjs";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,7 @@ export const GET = route(
     projectId,
     limit: url.searchParams.get("limit") ?? 25,
     cursor: url.searchParams.get("cursor"),
+    tagFilters: parseTagFilters(url.searchParams),
   }),
   { deps },
 );

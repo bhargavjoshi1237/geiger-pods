@@ -3,6 +3,7 @@ import { createServerSupabase } from "@/lib/supabase/server.js";
 import { withUsageDb } from "@/lib/control/usage-db.mjs";
 import { getUsageKv } from "@/lib/control/usage-kv.mjs";
 import { createPlan, listPlans } from "@/lib/control/usage-plans.mjs";
+import { parseTagFilters } from "@/lib/control/tags.mjs";
 
 export const runtime = "nodejs";
 
@@ -11,8 +12,8 @@ async function usageDb(db) {
 }
 
 export const GET = route(
-  async ({ db, actor, projectId }) =>
-    listPlans(await usageDb(db), actor, { projectId }),
+  async ({ db, actor, projectId, url }) =>
+    listPlans(await usageDb(db), actor, { projectId, tagFilters: parseTagFilters(url.searchParams) }),
   { permission: "pods.usage_plan.write" },
 );
 

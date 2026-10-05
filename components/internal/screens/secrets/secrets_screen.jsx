@@ -137,6 +137,8 @@ export function SecretsScreen() {
   const { status, items, error, refresh } = useSecrets(project.id);
   const [creating, setCreating] = useState(false);
   const [rotating, setRotating] = useState(null);
+  const [versionsFor, setVersionsFor] = useState(null);
+  const [versions, setVersions] = useState(null);
   const [busy, setBusy] = useState(false);
   const writable = can("pods.secret.write");
 
@@ -151,6 +153,34 @@ export function SecretsScreen() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const openVersions = async (secret) => {
+    setVersionsFor(secret);
+    setVersions(null);
+    try {
+      const detail = await api(project.id, `/${encodeURIComponent(secret.id)}`);
+      setVersions(detail.versions ?? []);
+    } catch (loadError) {
+      toast.error(loadError.message);
+      setVersionsFor(null);
+    }
+  };
+
+  const disableVersion = (secret, version) => mutate(
+    () => api(project.id, `/${encodeURIComponent(secret.id)}/versions/${encodeURIComponent(String(version))}/disable`, { method: "POST" }),
+    `Disabled ${secret.name} v${version}.`,
+  ).then(() => openVersions(secret));
+
+  const tryDelete = (secret) => {
+    if ((secret.usedBy ?? 0) > 0) {
+      toast.error(`Secret "${secret.name}" is still referenced by ${secret.usedBy} configuration row(s); detach it first.`);
+      return;
+    }
+    return mutate(
+      () => api(project.id, `/${encodeURIComponent(secret.id)}`, { method: "DELETE" }),
+      `Deleted ${secret.name}.`,
+    );
   };
 
   if (!writable) {
@@ -178,19 +208,19 @@ export function SecretsScreen() {
               <Badge variant="outline">{secret.kind}</Badge>
               <span>ending {secret.fingerprint}</span>
               <span>v{secret.currentVersion}</span>
+              <span>rotated {secret.lastRotatedAt ? new Date(secret.lastRotatedAt).toLocaleDateString() : "never"}</span>
               {secret.usedBy > 0 ? <span>used by {secret.usedBy}</span> : null}
             </p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled={busy} onClick={() => setRotating(secret)}><RotateCw className="size-4" />Rotate</Button>
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => openVersions(secret)}>Versions</Button>
             <Button
               variant="outline"
               size="sm"
               disabled={busy}
-              onClick={() => mutate(
-                () => api(project.id, `/${encodeURIComponent(secret.id)}`, { method: "DELETE" }),
-                `Deleted ${secret.name}.`,
-              )}
+              title={secret.usedBy > 0 ? `Used by ${secret.usedBy} configuration row(s); detach first.` : undefined}
+              onClick={() => tryDelete(secret)}
             >Delete</Button>
           </div>
         </li>)}
@@ -221,6 +251,22 @@ export function SecretsScreen() {
             `Rotated ${rotating.name} to v${rotating.currentVersion + 1}.`,
           ).then(() => setRotating(null))}
         /> : null}
+      </DialogContent>
+    </Dialog>
+    <Dialog open={versionsFor !== null} onOpenChange={(open) => { if (!open) { setVersionsFor(null); setVersions(null); } }}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Versions of {versionsFor?.name}</DialogTitle><DialogDescription>Disable an old version to stop resolving it. The current version cannot be disabled; rotate first.</DialogDescription></DialogHeader>
+        {versions === null ? <p className="text-sm text-muted-foreground">Loading versions…</p> : null}
+        {versions !== null && versions.length === 0 ? <p className="text-sm text-muted-foreground">No versions found.</p> : null}
+        {versions !== null && versions.length > 0 ? <ul className="space-y-2">
+          {versions.map((entry) => <li key={entry.version} className="flex items-center gap-2 text-sm">
+            <span className="font-medium">v{entry.version}</span>
+            {entry.version === versionsFor?.currentVersion ? <Badge variant="outline">current</Badge> : null}
+            {entry.disabledAt ? <Badge variant="outline">disabled</Badge> : <Badge variant="outline">enabled</Badge>}
+            <span className="ml-auto" />
+            {!entry.disabledAt && entry.version !== versionsFor?.currentVersion ? <Button variant="outline" size="sm" disabled={busy} onClick={() => disableVersion(versionsFor, entry.version)}>Disable</Button> : null}
+          </li>)}
+        </ul> : null}
       </DialogContent>
     </Dialog>
   </div>;

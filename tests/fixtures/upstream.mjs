@@ -87,8 +87,14 @@ export async function startUpstream(opts = {}) {
     if (segments[0] === "sleep" && segments[1] !== undefined) {
       const ms = Math.max(0, Number(segments[1]) || 0);
       await new Promise((resolve) => setTimeout(resolve, ms));
-      if (entry.aborted || req.destroyed) {
-        try { res.destroy(); } catch { /* client gone */ }
+      // `req.destroyed` is true on Node 24 after the request body was read,
+      // even when the client is still waiting — it must not abort the reply.
+      // The `res` "close" handler above sets `entry.aborted` only when the
+      // response itself closes unfinished, so gate on that plus `res.destroyed`.
+      if (entry.aborted || res.destroyed || res.writableEnded) {
+        if (!res.writableEnded) {
+          try { res.destroy(); } catch { /* client gone */ }
+        }
         return;
       }
       echo();

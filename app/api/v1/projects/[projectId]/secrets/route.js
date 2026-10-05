@@ -1,5 +1,6 @@
 import { route } from "@/lib/control/http.mjs";
 import { createSecretService, listSecrets } from "@/lib/control/secrets.mjs";
+import { parseTagFilters } from "@/lib/control/tags.mjs";
 
 export const runtime = "nodejs";
 
@@ -9,6 +10,7 @@ export const GET = route(
       projectId,
       limit: url.searchParams.get("limit") ?? undefined,
       cursor: url.searchParams.get("cursor"),
+      tagFilters: parseTagFilters(url.searchParams),
     }),
   { permission: "pods.secret.write" },
 );
