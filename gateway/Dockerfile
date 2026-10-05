@@ -10,8 +10,11 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 # Runtime sources only; the control plane stays in the Next.js image.
+# B1: the gateway wires control/vault helpers (signing, usage, observability)
+# which import the RBAC config at the repo root.
 COPY gateway ./gateway
 COPY lib ./lib
+COPY geiger-rbac.config.js ./geiger-rbac.config.js
 
 ENV NODE_ENV=production
 ENV PORT=4000
