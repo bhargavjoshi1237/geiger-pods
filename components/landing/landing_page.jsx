@@ -10,7 +10,6 @@ import { SuiteHeader } from "@geiger/ui/suite-header";
 import { useSession } from "@/context/session-context";
 import { ProfileDropdown } from "@/components/account/profile_dropdown";
 import { dashHref, productHref } from "@/lib/workspace/model.mjs";
-import HeroPods from "./hero_pods";
 import PodsPlaygroundShowcase from "./pods_playground_showcase";
 
 const capabilities = [
@@ -31,7 +30,7 @@ export default function PodsLandingPage({ playgroundBackground }) {
     <main id="main-content" className="isolate overflow-clip pt-[calc(48px+var(--geiger-banner-h,0px))] [&_:is(a,button):focus-visible]:outline-2 [&_:is(a,button):focus-visible]:outline-offset-4 [&_:is(a,button):focus-visible]:outline-ring">
       <section className="relative isolate">
         <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[540px] [background-image:linear-gradient(to_right,color-mix(in_srgb,var(--foreground)_12%,transparent)_1px,transparent_1px),linear-gradient(to_bottom,color-mix(in_srgb,var(--foreground)_12%,transparent)_1px,transparent_1px)] bg-size-[24px_24px] [mask-image:linear-gradient(to_bottom,#000,#000_25%,transparent_90%)]" aria-hidden="true" />
-        <div className="mx-auto grid w-full max-w-6xl grid-cols-2 items-center gap-16 px-6 pt-12 pb-4 max-[900px]:grid-cols-1 max-[900px]:gap-12 max-md:gap-8 max-md:pt-8 max-md:pb-2">
+        <div className="mx-auto w-full max-w-6xl px-6 pt-16 pb-20 max-md:pt-10 max-md:pb-12">
           <div className="max-w-[520px] max-[900px]:max-w-[640px]">
             <h1 className="m-0 text-[30px] leading-[1.25] font-semibold tracking-[-.025em] max-md:text-[27px]">One gateway. Every service.</h1>
             <p className="mt-4 mb-6 text-base leading-normal text-muted-foreground max-md:text-sm max-md:leading-[1.7]">Bring your API routes, access and releases into a Geiger workspace your team already shares.</p>
@@ -39,7 +38,6 @@ export default function PodsLandingPage({ playgroundBackground }) {
               <Link href="/project" className="inline-flex min-h-10 items-center justify-center gap-2.5 rounded-full bg-primary px-6 py-[9px] text-[15px] font-medium text-primary-foreground transition-colors duration-150 hover:bg-primary/88 max-md:text-sm">Get in your workspace<ArrowRight size={16} /></Link>
             </div>
           </div>
-          <div className="relative isolate grid min-h-0 place-items-center min-[900px]:-mt-6 min-[900px]:justify-items-end before:pointer-events-none before:absolute before:-inset-x-[8%] before:inset-y-[8%] before:-z-10 before:[background-image:linear-gradient(to_right,color-mix(in_srgb,var(--foreground)_8%,transparent)_1px,transparent_1px),linear-gradient(to_bottom,color-mix(in_srgb,var(--foreground)_8%,transparent)_1px,transparent_1px)] before:bg-size-[28px_28px] before:[mask-image:radial-gradient(ellipse_at_center,#000_15%,transparent_75%)] max-[900px]:max-w-[560px] max-md:hidden"><HeroPods /></div>
         </div>
       </section>
       <div id="playground" className="mx-auto mb-10 w-[94%] scroll-mt-20 sm:mb-20 md:w-[80%]"><PodsPlaygroundShowcase backgroundImage={playgroundBackground} /></div>
