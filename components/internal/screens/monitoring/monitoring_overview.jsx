@@ -137,7 +137,11 @@ export function MonitoringOverview({ apiId: initialApiId = "", stage: initialSta
     <ScreenHeader
       title="Monitoring"
       description="Request metrics from live gateway traffic. Test-invoke traffic is excluded."
-      actions={<Button variant="outline" onClick={refresh}>Refresh</Button>}
+      actions={<div className="flex gap-2">
+        <Button variant="outline" asChild><a href="logs">Logs</a></Button>
+        <Button variant="outline" asChild><a href="alarms">Alarms</a></Button>
+        <Button variant="outline" onClick={refresh}>Refresh</Button>
+      </div>}
     />
     <SectionCard title="Scope" description="Filter every chart by API and stage.">
       <div className="flex flex-wrap gap-4">

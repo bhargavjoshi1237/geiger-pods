@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
 import { fetchApis } from "./api_list";
+import { RouteAuthPicker } from "../auth/auth_picker";
 
 const TEST_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 
@@ -37,6 +38,7 @@ export function RoutesTab({ api }) {
   const [testPath, setTestPath] = useState("/");
   const [testResult, setTestResult] = useState(null);
   const [testing, setTesting] = useState(false);
+  const [authFor, setAuthFor] = useState(null);
 
   const refresh = useCallback(async () => {
     setState({ status: "loading", routes: [], error: null });
@@ -115,22 +117,26 @@ export function RoutesTab({ api }) {
         {grouped.map(([path, routes]) => <li key={path} className="py-4 first:pt-0 last:pb-0">
           <p className="font-mono text-sm font-medium">{path}</p>
           <ul className="mt-2 space-y-2">
-            {routes.map((route) => <li key={route.id} className="flex flex-wrap items-center gap-3 text-sm">
-              <Badge variant="outline">{splitKey(route.routeKey).method}</Badge>
-              <span className="text-xs text-muted-foreground">
-                {route.authorizationType}{route.integrationId ? " · integrated" : " · no integration yet (S04)"}
-              </span>
-              {writable ? <span className="ml-auto">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => mutate(
-                    () => fetchApis(project.id, `${base}/routes/${encodeURIComponent(route.id)}`, { method: "DELETE" }),
-                    `Deleted ${route.routeKey}.`,
-                  )}
-                ><Trash2 className="size-4" />Delete</Button>
-              </span> : null}
+            {routes.map((route) => <li key={route.id} className="text-sm">
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge variant="outline">{splitKey(route.routeKey).method}</Badge>
+                <span className="text-xs text-muted-foreground">
+                  {route.authorizationType}{route.integrationId ? " · integrated" : " · no integration yet (S04)"}
+                </span>
+                <span className="ml-auto flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setAuthFor(authFor === route.id ? null : route.id)}>Auth</Button>
+                  {writable ? <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => mutate(
+                      () => fetchApis(project.id, `${base}/routes/${encodeURIComponent(route.id)}`, { method: "DELETE" }),
+                      `Deleted ${route.routeKey}.`,
+                    )}
+                  ><Trash2 className="size-4" />Delete</Button> : null}
+                </span>
+              </div>
+              {authFor === route.id ? <RouteAuthPicker key={`${route.id}-${route.version}`} api={api} route={route} onSaved={refresh} /> : null}
             </li>)}
           </ul>
         </li>)}

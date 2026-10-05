@@ -11,6 +11,8 @@ import { LogoLoading } from "@geiger/ui/logo-loading";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
+import { StageThrottleTab } from "../usage/stage_throttle_tab";
+import { StageLoggingTab } from "../monitoring/stage_logging_tab";
 
 async function api(projectId, apiId, path, options = {}) {
   const response = await fetch(`/api/v1/projects/${encodeURIComponent(projectId)}/apis/${encodeURIComponent(apiId)}${path}`, {
@@ -94,9 +96,11 @@ export function StagesTab({ api }) {
 }
 
 function StageDetail({ api, stage, onClose, onChanged, can, projectId }) {
+  const [subTab, setSubTab] = useState("settings");
   const [variablesText, setVariablesText] = useState(JSON.stringify(stage.variables ?? {}, null, 2));
   const [history, setHistory] = useState({ status: "idle", items: [] });
   const [busy, setBusy] = useState(false);
+  const apiRef = api.publicId ?? api.id;
 
   const saveVariables = async () => {
     let variables;
@@ -153,7 +157,20 @@ function StageDetail({ api, stage, onClose, onChanged, can, projectId }) {
   };
 
   return <div className="mt-4 space-y-4 border-t border-border pt-4">
-    <div className="space-y-2">
+    <div className="flex flex-wrap gap-2" role="tablist" aria-label={`Stage ${stage.name} sections`}>
+      {[["settings", "Settings"], ["throttling", "Throttling"], ["logging", "Logs & tracing"], ["history", "History"]].map(([key, label]) => <Button
+        key={key}
+        variant={subTab === key ? "default" : "outline"}
+        size="sm"
+        onClick={() => {
+          setSubTab(key);
+          if (key === "history") loadHistory();
+        }}
+      >{label}</Button>)}
+      <span className="flex-1" />
+      <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
+    </div>
+    {subTab === "settings" ? <div className="space-y-2">
       <Label htmlFor={`vars-${stage.id}`}>Stage variables (JSON)</Label>
       <textarea
         id={`vars-${stage.id}`}
@@ -164,17 +181,24 @@ function StageDetail({ api, stage, onClose, onChanged, can, projectId }) {
       />
       <div className="flex gap-2">
         <Button variant="outline" size="sm" disabled={busy || !can("pods.stage.write")} onClick={saveVariables}>Save variables</Button>
-        <Button variant="outline" size="sm" onClick={loadHistory}><History className="size-4" />History</Button>
-        <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
       </div>
-    </div>
-    {history.status === "ready" ? <ul className="space-y-2 text-xs">
-      {history.items.map((entry) => <li key={entry.id} className="flex flex-wrap items-center gap-2">
-        <Badge variant="outline">{entry.reason}</Badge>
-        <span>{String(entry.fromDeploymentId ?? "—").slice(0, 8)} → {String(entry.toDeploymentId ?? "—").slice(0, 8)}</span>
-        <Button variant="outline" size="sm" disabled={busy} onClick={() => rollback(entry.fromDeploymentId)}>Rollback to previous</Button>
-      </li>)}
-      {history.items.length === 0 ? <li className="text-muted-foreground">No pointer changes yet.</li> : null}
-    </ul> : null}
+      <p className="text-xs text-muted-foreground">Client certificates ride on the stage; manage them under API Settings. Cache and canary arrive in S09.</p>
+    </div> : null}
+    {subTab === "throttling" ? <StageThrottleTab api={api} stage={stage} /> : null}
+    {subTab === "logging" ? <StageLoggingTab apiId={apiRef} stageName={stage.name} /> : null}
+    {subTab === "history" ? <div className="space-y-2">
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={loadHistory}><History className="size-4" />Reload history</Button>
+      </div>
+      {history.status === "loading" ? <p className="text-xs text-muted-foreground">Loading history…</p> : null}
+      {history.status === "ready" ? <ul className="space-y-2 text-xs">
+        {history.items.map((entry) => <li key={entry.id} className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline">{entry.reason}</Badge>
+          <span>{String(entry.fromDeploymentId ?? "—").slice(0, 8)} → {String(entry.toDeploymentId ?? "—").slice(0, 8)}</span>
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => rollback(entry.fromDeploymentId)}>Rollback to previous</Button>
+        </li>)}
+        {history.items.length === 0 ? <li className="text-muted-foreground">No pointer changes yet.</li> : null}
+      </ul> : null}
+    </div> : null}
   </div>;
 }

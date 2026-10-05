@@ -124,7 +124,10 @@ export function UsagePlansScreen() {
     <ScreenHeader
       title="Usage plans"
       description="Throttle and quota envelopes for API stages and the keys that may call them."
-      action={writable ? <Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" />Create plan</Button> : null}
+      action={<span className="flex gap-2">
+        <Button variant="outline" size="sm" asChild><a href="api-keys">API keys</a></Button>
+        {writable ? <Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" />Create plan</Button> : null}
+      </span>}
     />
     {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={KeyRound} title="Plans unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}

@@ -14,6 +14,9 @@ import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
 import { fetchApis } from "./api_list";
+import { ClientCertificatesCard } from "../integrations/client_certificates";
+import { ResourcePolicyEditor } from "../auth/resource_policy_editor";
+import { TagsEditor } from "../admin/tags_editor";
 
 export function SettingsTab({ api }) {
   const { project } = useProject();
@@ -153,6 +156,9 @@ export function SettingsTab({ api }) {
         <div><Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save settings"}</Button></div>
       </form>
     </SectionCard> : null}
+    {rest ? <ResourcePolicyEditor api={api} /> : null}
+    <TagsEditor resourceType="api" resourceId={api.id} />
+    <ClientCertificatesCard />
     {deletable ? <SectionCard title="Danger" description="Deleting an API hides its draft and every child row.">
       <Button variant="outline" size="sm" onClick={() => { setConfirmName(""); setConfirming(true); }}><Trash2 className="size-4" />Delete API</Button>
       <Dialog open={confirming} onOpenChange={setConfirming}>

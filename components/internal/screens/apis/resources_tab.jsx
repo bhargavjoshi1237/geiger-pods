@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
 import { fetchApis } from "./api_list";
+import { MethodDetail } from "./method_view";
 
 const METHOD_OPTIONS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "ANY"];
 
@@ -21,14 +22,6 @@ function depthOf(path) {
   if (path === "/") return 0;
   return path.split("/").length - 1;
 }
-
-const FLOW = [
-  { title: "Method request", detail: "Auth, validators, parameters — this tab (S03).", owner: null },
-  { title: "Integration request", detail: "Mapping and templates arrive in S06.", owner: "S04/S06" },
-  { title: "Integration", detail: "Backends arrive in S04.", owner: "S04" },
-  { title: "Integration response", detail: "Selection patterns arrive in S06.", owner: "S06" },
-  { title: "Method response", detail: "Status and headers arrive in S06.", owner: "S06" },
-];
 
 export function ResourcesTab({ api }) {
   const { project } = useProject();
@@ -182,20 +175,13 @@ export function ResourcesTab({ api }) {
           </li>)}
         </ul>
       </SectionCard>
-      {activeMethod ? <SectionCard title="Execution flow" description="The AWS console flow. Each box opens its owning editor.">
-        <ol className="grid gap-2 sm:grid-cols-5">
-          {FLOW.map((box) => <li key={box.title} className="rounded-lg border border-border p-3">
-            <p className="text-xs font-medium">{box.title}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{box.detail}</p>
-            {box.owner ? <p className="mt-1 text-xs text-muted-foreground">Coming in {box.owner}</p> : null}
-          </li>)}
-        </ol>
-        <dl className="mt-4 space-y-1 text-xs text-muted-foreground">
-          <div className="flex gap-2"><dt className="w-32 shrink-0">Authorization</dt><dd>{activeMethod.authorizationType}</dd></div>
-          <div className="flex gap-2"><dt className="w-32 shrink-0">API key</dt><dd>{activeMethod.apiKeyRequired ? "Required" : "Not required"}</dd></div>
-          <div className="flex gap-2"><dt className="w-32 shrink-0">Operation</dt><dd>{activeMethod.operationName || "—"}</dd></div>
-        </dl>
-      </SectionCard> : null}
+      {activeMethod && selected ? <MethodDetail
+        key={activeMethod.id}
+        api={api}
+        resourceId={selected.id}
+        method={activeMethod}
+        onChanged={() => loadMethods(selected.id).catch((error) => toast.error(error.message))}
+      /> : null}
       {writable && selected && selected.path !== "/" ? <SectionCard title="Danger" description="Delete this resource.">
         <Button
           variant="outline"

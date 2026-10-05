@@ -199,7 +199,10 @@ export function ApiKeysScreen() {
     <ScreenHeader
       title="API keys"
       description="Client identifiers for usage plans. Keys identify callers — they do not authenticate them."
-      action={writable ? <Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" />Create key</Button> : null}
+      action={<span className="flex gap-2">
+        <Button variant="outline" size="sm" asChild><a href="usage-plans">Usage plans</a></Button>
+        {writable ? <Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" />Create key</Button> : null}
+      </span>}
     />
     {fresh ? <ValueOnce value={fresh.value} title="Copy this value now — it is shown once and never stored in readable form." /> : null}
     {revealed ? <ValueOnce value={revealed.value} title={`Revealed value for ${revealed.name} (audited).`} /> : null}

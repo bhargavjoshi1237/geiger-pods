@@ -75,6 +75,15 @@ export function SettingsScreen() {
   return <div className="mx-auto w-full max-w-5xl space-y-6 px-2 py-4 lg:px-0">
     <ScreenHeader title="Settings" description="Project details and gateway defaults for this workspace." />
     <ProjectDetails />
+    <SectionCard title="Administration" description="Team access, automation tokens, log exports, declarative stacks and SigV4 signing credentials.">
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" asChild><a href="access">Team access</a></Button>
+        <Button variant="outline" size="sm" asChild><a href="tokens">Access tokens</a></Button>
+        <Button variant="outline" size="sm" asChild><a href="exports">Log exports</a></Button>
+        <Button variant="outline" size="sm" asChild><a href="stacks">Stacks</a></Button>
+        <Button variant="outline" size="sm" asChild><a href="../access/credentials">Signing credentials</a></Button>
+      </div>
+    </SectionCard>
     <SectionCard title="Gateway settings" description="Account-level throttling, retention and routing defaults (the AWS account-settings equivalent).">
       {state.status === "loading" ? <div className="flex justify-center py-8"><LogoLoading /></div> : null}
       {state.status === "ready" && !state.settings ? <EmptyState icon={Settings2} title="Settings unavailable" description={state.error ?? "Try again shortly."} /> : null}

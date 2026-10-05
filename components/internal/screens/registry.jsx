@@ -15,15 +15,35 @@ import { TeamAccessScreen } from "./settings/team_access";
 import { ApiDetailScreen } from "./apis/api_detail";
 import { ApiListScreen } from "./apis/api_list";
 import { ConnectorsScreen } from "./connectors/connectors_screen";
+import { ApiKeysScreen } from "./usage/keys_screen";
+import { UsagePlansScreen } from "./usage/plans_screen";
+import { MonitoringOverview } from "./monitoring/monitoring_overview";
+import { LogsScreen } from "./monitoring/logs_screen";
+import { AlarmsScreen } from "./monitoring/alarms_screen";
+import { ExportsScreen } from "./monitoring/exports_screen";
+import { AuditScreen } from "./audit/audit_screen";
+import { TokensScreen } from "./admin/tokens_screen";
+import { StacksPanel } from "./admin/stacks_panel";
+import { SigningCredentialsScreen } from "./auth/credentials_screen";
 
 const screens = {
   overview: PodsOverview,
   settings: SettingsScreen,
   teamAccess: TeamAccessScreen,
+  tokens: TokensScreen,
+  exports: ExportsScreen,
+  stacks: StacksPanel,
+  credentials: SigningCredentialsScreen,
   secretList: SecretsScreen,
   apiList: ApiListScreen,
   apiDetail: ApiDetailScreen,
   connectorList: ConnectorsScreen,
+  usagePlans: UsagePlansScreen,
+  apiKeys: ApiKeysScreen,
+  monitoring: MonitoringOverview,
+  logs: LogsScreen,
+  alarms: AlarmsScreen,
+  auditLog: AuditScreen,
   projectDetails: ProjectDetails,
   roadmap: Roadmap,
 };
@@ -32,9 +52,12 @@ const screens = {
 const defaultScreen = {
   overview: "overview",
   apis: "apiList",
+  usage: "usagePlans",
   connectors: "connectorList",
   settings: "settings",
   secrets: "secretList",
+  monitoring: "monitoring",
+  audit: "auditLog",
   roadmap: "roadmap",
 };
 
