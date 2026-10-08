@@ -23,6 +23,47 @@ export const ARTIFACT_CACHE_SIZE = 500;
 export const STAGE_CHANGED_CHANNEL = "pods:stage-changed";
 
 /**
+ * Vault ref for a stage's cache DEK (F29): the engine resolves
+ * `cache-dek:<stageId>` through `ports.secrets` (vault-backed per-stage
+ * secret provisioned by `ensureStageCacheDek`), falling back to the derived
+ * default only when unprovisioned (loud in production). The loader carries
+ * the ref — never the material — alongside `stageCache`.
+ *
+ * @param {string} stageId - `${apiPublicId}:${stage}`.
+ * @returns {string}
+ */
+export function stageCacheDekRef(stageId) {
+  return `cache-dek:${String(stageId ?? "")}`;
+}
+
+/**
+ * Stage observability settings for the emit phase (F50, S10 §3–§5).
+ *
+ * Mutable stage settings travel separately from the immutable artifact: the
+ * loader attaches the mapped object as `resolved.stageObservability` and the
+ * gateway host copies it to `ctx.stageSettings`, which is the emit phase's
+ * primary settings source (see `stageSettingsOf` in `phases/emit.mjs`).
+ * Accepts a Supabase `stages` row (snake_case) or an already-mapped object
+ * (camelCase, e.g. a memory-loader fixture); missing values fall back to
+ * the emit-phase defaults (access log off, logging OFF, tracing off).
+ *
+ * @param {object|null} stage - Stage row or settings object.
+ * @returns {object|null} Emit-phase settings, or null when `stage` is null.
+ */
+export function stageObservabilityFromRow(stage) {
+  if (!stage || typeof stage !== "object") return null;
+  const accessLog = stage.accessLog ?? stage.access_log ?? null;
+  return {
+    accessLog: accessLog ?? null,
+    loggingLevel: stage.loggingLevel ?? stage.default_logging_level ?? "OFF",
+    dataTraceEnabled: stage.dataTraceEnabled ?? stage.default_data_trace ?? false,
+    tracingEnabled: stage.tracingEnabled ?? stage.tracing_enabled ?? false,
+    methodSettings: stage.methodSettings ?? stage.method_settings ?? {},
+    routeSettings: stage.routeSettings ?? stage.route_settings ?? {},
+  };
+}
+
+/**
  * Normalizes a gateway domain for host matching (lowercase, no port).
  *
  * @param {string} host
@@ -35,10 +76,13 @@ export function normalizeHost(host) {
 /**
  * Creates an in-memory loader for tests: fixture artifacts plus stage
  * pointers, no Supabase. `stages` maps `${apiPublicId}:${stage}` →
- * `{ artifact, stageVariables?, deploymentId? }`.
+ * `{ artifact, stageVariables?, deploymentId?, stageCache?, stageObservability?,
+ * agentTools? }`. `customDomains` is the S11
+ * fixture list: `{ domainName, status?, routingMode?, mappings: [{ apiPublicId,
+ * stage, basePath }], rules? }` (checked before the default host pattern).
  *
  * @param {{ artifacts?: Map<string, object>|Record<string, object>, stages?: Map<string, object>|Record<string, object>,
- *   domain?: string|null, pathRouting?: boolean, kv?: object|null }} [options={}]
+ *   domain?: string|null, pathRouting?: boolean, kv?: object|null, customDomains?: Array<object> }} [options={}]
  */
 export function createMemoryLoader(options = {}) {
   const artifacts = options.artifacts instanceof Map
@@ -50,6 +94,7 @@ export function createMemoryLoader(options = {}) {
   const domain = options.domain ?? process.env.PODS_GATEWAY_DOMAIN ?? null;
   const pathRouting = options.pathRouting ?? process.env.PODS_GATEWAY_PATH_ROUTING === "1";
   const kv = options.kv ?? null;
+  const customDomains = options.customDomains ?? [];
 
   if (kv && typeof kv.subscribe === "function") {
     try {
@@ -79,6 +124,13 @@ export function createMemoryLoader(options = {}) {
   async function resolve(host, path) {
     const cleanHost = normalizeHost(host);
     const cleanPath = String(path ?? "/").split("?")[0] || "/";
+    // S11: custom domains resolve before the default host pattern. An
+    // unverified domain (or a miss under ROUTING_RULE_ONLY) answers here;
+    // other hosts fall through to the default handling below.
+    if (customDomains.length > 0) {
+      const hit = await resolveCustom(cleanHost, cleanPath);
+      if (hit) return hit;
+    }
     // Path-based: /{apiPublicId}/{stage}/{rest}
     if (pathRouting || !domain || !cleanHost.endsWith(`.${String(domain).toLowerCase()}`)) {
       const segments = cleanPath.split("/").filter(Boolean);
@@ -105,6 +157,73 @@ export function createMemoryLoader(options = {}) {
   }
 
   /**
+   * S11 custom-domain resolution against the fixture list. Returns null when
+   * no configured domain matches (fall through to default handling).
+   *
+   * @param {string} cleanHost
+   * @param {string} cleanPath
+   */
+  async function resolveCustom(cleanHost, cleanPath) {
+    const { matchDomain, resolveCustomDomain } = await import("../lib/gateway/core/edge/host-resolve.mjs");
+    for (const entry of customDomains) {
+      if (!matchDomain(entry.domainName, cleanHost).matched) continue;
+      const resolved = resolveCustomDomain({
+        host: cleanHost,
+        path: cleanPath,
+        headers: {},
+        domain: { domainName: entry.domainName, status: entry.status ?? "AVAILABLE", routingMode: entry.routingMode ?? "API_MAPPING_ONLY" },
+        mappings: entry.mappings ?? [],
+        rules: entry.rules ?? [],
+      });
+      if (resolved.error === "notFound") {
+        throw Object.assign(new Error("Not Found"), { status: 404, type: "RESOURCE_NOT_FOUND" });
+      }
+      if (resolved.error) {
+        throw Object.assign(new Error("Forbidden"), { status: 403, type: "ACCESS_DENIED" });
+      }
+      const key = `${resolved.apiId}:${resolved.stage}`;
+      if (!stages.has(key)) {
+        throw Object.assign(new Error("Forbidden"), { status: 403, type: "ACCESS_DENIED" });
+      }
+      const stageEntry = stages.get(key);
+      const artifact = stageEntry.artifact ?? stageEntry;
+      return {
+        apiPublicId: resolved.apiId,
+        stage: resolved.stage,
+        artifact: withStage(artifact, resolved.stage, stageEntry.stageVariables ?? artifact.stageVariables),
+        stageVariables: stageEntry.stageVariables ?? artifact.stageVariables ?? {},
+        basePathStripped: resolved.strippedPath,
+        deploymentId: stageEntry.deploymentId ?? artifact.deploymentId ?? null,
+        canary: stageEntry.canary ?? artifact.canary ?? null,
+        canaryArtifact: stageEntry.canaryArtifact ?? artifact.canaryArtifact ?? null,
+        stageCache: stageEntry.stageCache ?? artifact.stageCache ?? null,
+        // F50: stage observability settings travel alongside the base artifact.
+        stageObservability: stageEntry.stageObservability
+          ?? artifact.stageSettings?.[resolved.stage]
+          ?? null,
+        // S13E: the MCP agent-tools opt-in travels with the stage pointer.
+        agentTools: stageEntry.agentTools ?? artifact.agentTools ?? null,
+        domainName: cleanHost,
+        viaDefaultEndpoint: false,
+        customDomainMatch: {
+          strippedPath: resolved.strippedPath,
+          routingRuleId: resolved.routingRuleId,
+          basePathMatched: resolved.basePathMatched,
+          domainPrefix: resolved.domainPrefix,
+          domainName: cleanHost,
+          apiPublicId: resolved.apiId,
+          stage: resolved.stage,
+          // F34: private-domain enforcement inputs (null/empty = skip).
+          endpointType: entry.endpointType ?? "REGIONAL",
+          policy: entry.policy ?? null,
+          associatedConnectorIds: entry.associatedConnectorIds ?? [],
+        },
+      };
+    }
+    return null;
+  }
+
+  /**
    * @param {string} apiPublicId
    * @param {string} remainder - Path after the host/api prefix.
    */
@@ -127,6 +246,13 @@ export function createMemoryLoader(options = {}) {
         canary: entry.canary ?? artifact.canary ?? null,
         canaryArtifact: entry.canaryArtifact ?? artifact.canaryArtifact ?? null,
         stageCache: entry.stageCache ?? artifact.stageCache ?? null,
+        // F50: stage observability settings travel alongside the base artifact.
+        stageObservability: entry.stageObservability
+          ?? artifact.stageSettings?.[first]
+          ?? null,
+        // S13E: the MCP agent-tools opt-in travels alongside the base artifact.
+        agentTools: entry.agentTools ?? artifact.agentTools ?? null,
+        viaDefaultEndpoint: true,
       };
     }
     if (stages.has(`${apiPublicId}:$default`)) {
@@ -142,6 +268,12 @@ export function createMemoryLoader(options = {}) {
         canary: entry.canary ?? artifact.canary ?? null,
         canaryArtifact: entry.canaryArtifact ?? artifact.canaryArtifact ?? null,
         stageCache: entry.stageCache ?? artifact.stageCache ?? null,
+        // F50: stage observability settings travel alongside the base artifact.
+        stageObservability: entry.stageObservability
+          ?? artifact.stageSettings?.["$default"]
+          ?? null,
+        agentTools: entry.agentTools ?? artifact.agentTools ?? null,
+        viaDefaultEndpoint: true,
       };
     }
     // No stage matched: REST → 403 Forbidden, HTTP → 404 Not Found.
@@ -235,7 +367,7 @@ export function createSupabaseLoader({ supabase, kv = null, domain = null, pathR
 
   async function getStage(apiId, name) {
     const { data, error } = await supabase.schema("pods").from("stages")
-      .select("id, api_id, name, deployment_id, variables, canary, method_settings, cache_cluster_enabled, cache_cluster_size, cache_default_ttl, cache_data_encrypted, require_authorization_for_cache_control, unauthorized_cache_control_header_strategy")
+      .select("id, api_id, name, deployment_id, variables, canary, agent_tools, method_settings, route_settings, access_log, tracing_enabled, default_logging_level, default_data_trace, cache_cluster_enabled, cache_cluster_size, cache_default_ttl, cache_data_encrypted, require_authorization_for_cache_control, unauthorized_cache_control_header_strategy")
       .eq("api_id", apiId)
       .eq("name", name)
       .maybeSingle();
@@ -279,6 +411,116 @@ export function createSupabaseLoader({ supabase, kv = null, domain = null, pathR
   }
 
   /**
+   * S11: custom-domain resolution from `pods.domain_names` (+ mappings and
+   * routing rules). Best-effort: any store error falls through to the
+   * default host handling. Results share the 5 s negative cache above.
+   *
+   * @param {string} cleanHost
+   * @param {string} cleanPath
+   * @returns {Promise<object|null>}
+   */
+  async function resolveCustomFromStore(cleanHost, cleanPath) {
+    const { matchDomain, resolveCustomDomain } = await import("../lib/gateway/core/edge/host-resolve.mjs");
+    const labels = cleanHost.split(".");
+    const candidates = [cleanHost];
+    if (labels.length > 2) candidates.push(`*.${labels.slice(1).join(".")}`);
+    let domain = null;
+    for (const name of candidates) {
+      const { data } = await supabase.schema("pods").from("domain_names")
+        .select("id, domain_name, status, routing_mode, target_hostname, endpoint_type, policy")
+        .eq("domain_name", name)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (data && matchDomain(data.domain_name, cleanHost).matched) {
+        domain = data;
+        break;
+      }
+    }
+    if (!domain) return null;
+    // F34: private-domain enforcement inputs (best-effort; missing tables or
+    // errors mean "no private inputs", never a failure).
+    let associatedConnectorIds = [];
+    try {
+      const { data: assocRows } = await supabase.schema("pods").from("domain_access_associations")
+        .select("connector_id")
+        .eq("domain_id", domain.id);
+      associatedConnectorIds = (assocRows ?? []).map((row) => row.connector_id).filter(Boolean);
+    } catch {
+      associatedConnectorIds = [];
+    }
+    const { data: mappingRows } = await supabase.schema("pods").from("api_mappings")
+      .select("api_id, stage_name, base_path")
+      .eq("domain_id", domain.id);
+    const { data: ruleRows } = await supabase.schema("pods").from("routing_rules")
+      .select("id, priority, conditions, action")
+      .eq("domain_id", domain.id)
+      .order("priority", { ascending: true });
+    // Map internal api uuids to public ids for the resolver.
+    const apiIds = [...new Set([
+      ...(mappingRows ?? []).map((row) => row.api_id),
+      ...(ruleRows ?? []).flatMap((row) => row.action?.invokeApi?.apiId ? [row.action.invokeApi.apiId] : []),
+    ])];
+    const publicById = new Map();
+    for (const apiId of apiIds) {
+      const { data: api } = await supabase.schema("pods").from("apis")
+        .select("id, public_id")
+        .eq("id", apiId)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (api) publicById.set(api.id, api.public_id);
+    }
+    const resolved = resolveCustomDomain({
+      host: cleanHost,
+      path: cleanPath,
+      headers: {},
+      domain: { domainName: domain.domain_name, status: domain.status, routingMode: domain.routing_mode },
+      mappings: (mappingRows ?? []).map((row) => ({
+        apiPublicId: publicById.get(row.api_id) ?? row.api_id,
+        stage: row.stage_name,
+        basePath: row.base_path,
+      })),
+      rules: (ruleRows ?? []).map((row) => ({
+        id: row.id,
+        priority: row.priority,
+        conditions: row.conditions,
+        action: {
+          invokeApi: {
+            apiId: publicById.get(row.action?.invokeApi?.apiId) ?? row.action?.invokeApi?.apiId,
+            stage: row.action?.invokeApi?.stage,
+            stripBasePath: row.action?.invokeApi?.stripBasePath ?? false,
+          },
+        },
+      })),
+    });
+    if (resolved.error === "notFound") {
+      throw Object.assign(new Error("Not Found"), { status: 404, type: "RESOURCE_NOT_FOUND" });
+    }
+    if (resolved.error) {
+      throw Object.assign(new Error("Forbidden"), { status: 403, type: "ACCESS_DENIED" });
+    }
+    const out = await resolveForApi(resolved.apiId, `/${resolved.stage}${resolved.strippedPath}`);
+    return {
+      ...out,
+      basePathStripped: resolved.strippedPath,
+      domainName: cleanHost,
+      viaDefaultEndpoint: false,
+      customDomainMatch: {
+        strippedPath: resolved.strippedPath,
+        routingRuleId: resolved.routingRuleId,
+        basePathMatched: resolved.basePathMatched,
+        domainPrefix: resolved.domainPrefix,
+        domainName: cleanHost,
+        apiPublicId: resolved.apiId,
+        stage: resolved.stage,
+        // F34: private-domain enforcement inputs.
+        endpointType: domain.endpoint_type ?? "REGIONAL",
+        policy: domain.policy ?? null,
+        associatedConnectorIds,
+      },
+    };
+  }
+
+  /**
    * @param {string} host
    * @param {string} path
    */
@@ -294,18 +536,28 @@ export function createSupabaseLoader({ supabase, kv = null, domain = null, pathR
       throw error;
     }
     try {
+      // S11: custom domains first (best-effort; falls through on store error).
+      try {
+        const custom = await resolveCustomFromStore(cleanHost, cleanPath);
+        if (custom) return custom;
+      } catch (error) {
+        if (error && typeof error.status === "number" && (error.status === 403 || error.status === 404)) throw error;
+        // Store/shape errors fall through to default handling.
+      }
       if (usePathRouting || !gatewayDomain || !cleanHost.endsWith(`.${String(gatewayDomain).toLowerCase()}`)) {
         const segments = cleanPath.split("/").filter(Boolean);
         const apiPublicId = segments[0] ?? "";
         if (!apiPublicId) throw Object.assign(new Error("Not Found"), { status: 404, type: "RESOURCE_NOT_FOUND" });
-        return await resolveForApi(apiPublicId, `/${segments.slice(1).join("/")}` || "/");
+        const resolved = await resolveForApi(apiPublicId, `/${segments.slice(1).join("/")}` || "/");
+        return { viaDefaultEndpoint: true, ...resolved };
       }
       const suffix = `.${String(gatewayDomain).toLowerCase()}`;
       const apiPublicId = cleanHost.slice(0, -suffix.length);
       if (!apiPublicId || apiPublicId.includes(".")) {
         throw Object.assign(new Error("Forbidden"), { status: 403, type: "ACCESS_DENIED" });
       }
-      return await resolveForApi(apiPublicId, cleanPath);
+      const resolved = await resolveForApi(apiPublicId, cleanPath);
+      return { viaDefaultEndpoint: true, ...resolved };
     } catch (error) {
       if (error && (error.code === "PGRST116" || /fetch failed|network|timeout/i.test(error.message ?? ""))) {
         // Store outage: serve cached artifacts when possible; unknown → 503.
@@ -393,6 +645,10 @@ export function createSupabaseLoader({ supabase, kv = null, domain = null, pathR
           canary,
           canaryArtifact,
           stageCache: stageCacheFromRow(stage),
+          // F50: stage observability settings from the stage row.
+          stageObservability: stageObservabilityFromRow(stage),
+          // S13E: the MCP agent-tools opt-in travels with the stage row.
+          agentTools: stage.agent_tools ?? null,
         };
       }
     }
@@ -418,6 +674,10 @@ export function createSupabaseLoader({ supabase, kv = null, domain = null, pathR
         stageVariables: fallback.variables ?? {},
         basePathStripped: remainder || "/",
         deploymentId: fallback.deployment_id,
+        // F50: stage observability settings from the stage row.
+        stageObservability: stageObservabilityFromRow(fallback),
+        // S13E: the MCP agent-tools opt-in travels with the stage row.
+        agentTools: fallback.agent_tools ?? null,
       };
     }
     // Stale-if-error for $default: when the store is down but a cached

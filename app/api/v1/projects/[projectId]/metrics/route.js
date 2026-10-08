@@ -1,7 +1,7 @@
 import { route } from "@/lib/control/http.mjs";
 import { createControlDb } from "@/lib/control/supabase-db.mjs";
 import { withObservabilityTables } from "@/lib/control/observe-db.mjs";
-import { queryMetrics, queryOverviewCounts } from "@/lib/control/metrics.mjs";
+import { getDashboard, queryMetrics, queryOverviewCounts } from "@/lib/control/metrics.mjs";
 
 export const runtime = "nodejs";
 
@@ -26,6 +26,9 @@ function parseDims(value) {
 export const GET = route(
   async ({ db, actor, projectId, url }) => {
     const query = url.searchParams;
+    if (query.get("view") === "dashboard") {
+      return getDashboard(db, actor, { projectId, days: query.get("days") ?? 14 });
+    }
     if (query.get("view") === "overview") {
       return queryOverviewCounts(db, actor, {
         projectId,

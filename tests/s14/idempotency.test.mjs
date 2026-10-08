@@ -43,25 +43,25 @@ test("S14: Idempotency-Key replay returns identical response and creates one res
   assert.equal(hashBody({ a: 1 }), hashBody({ a: 1 }));
 });
 
-test("S14: control-plane burst 40 then 429 with Retry-After", () => {
+test("S14: control-plane burst 40 then 429 with Retry-After", async () => {
   let now = 0;
   const limiter = new ControlRateLimiter({ now: () => now });
   for (let i = 0; i < CONTROL_PLANE_LIMIT.burst; i++) {
-    assert.equal(limiter.consume("proj").allowed, true);
+    assert.equal((await limiter.consume("proj")).allowed, true);
   }
-  const blocked = limiter.consume("proj");
+  const blocked = await limiter.consume("proj");
   assert.equal(blocked.allowed, false);
   assert.ok(blocked.retryAfterMs > 0);
   // Other projects are unaffected.
-  assert.equal(limiter.consume("other").allowed, true);
+  assert.equal((await limiter.consume("other")).allowed, true);
   // Refill after 1 s (10 tokens).
   now += 1000;
-  for (let i = 0; i < 10; i++) assert.equal(limiter.consume("proj").allowed, true);
-  assert.equal(limiter.consume("proj").allowed, false);
+  for (let i = 0; i < 10; i++) assert.equal((await limiter.consume("proj")).allowed, true);
+  assert.equal((await limiter.consume("proj")).allowed, false);
   // Heavy buckets: deployments 1/2 s per API.
-  assert.equal(limiter.consumeHeavy("deployments.create", "api-1").allowed, true);
-  const second = limiter.consumeHeavy("deployments.create", "api-1");
+  assert.equal((await limiter.consumeHeavy("deployments.create", "api-1")).allowed, true);
+  const second = await limiter.consumeHeavy("deployments.create", "api-1");
   assert.equal(second.allowed, false);
   assert.ok(second.retryAfterMs > 0);
-  assert.equal(limiter.consumeHeavy("deployments.create", "api-2").allowed, true);
+  assert.equal((await limiter.consumeHeavy("deployments.create", "api-2")).allowed, true);
 });

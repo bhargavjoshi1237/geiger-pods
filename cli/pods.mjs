@@ -29,6 +29,17 @@ const GLOBAL_OPTIONS = {
   body: { type: "string" },
   limit: { type: "string" },
   token: { type: "string" },
+  mode: { type: "string" },
+  out: { type: "string" },
+  type: { type: "string" },
+  format: { type: "string" },
+  extensions: { type: "string" },
+  source: { type: "string" },
+  basepath: { type: "string" },
+  domain: { type: "string" },
+  "fail-on-warnings": { type: "boolean", default: false },
+  "dry-run": { type: "boolean", default: false },
+  "include-docs": { type: "boolean", default: false },
   help: { type: "boolean", short: "h", default: false },
 };
 

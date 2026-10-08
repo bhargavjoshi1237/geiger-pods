@@ -213,6 +213,63 @@ paths:
       responses:
         2XX:
           description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/documentation/export:
+    get:
+      operationId: get_projects_projectId_apis_apiId_documentation_export
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/documentation/import:
+    put:
+      operationId: put_projects_projectId_apis_apiId_documentation_import
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/documentation/parts/{partId}:
+    patch:
+      operationId: patch_projects_projectId_apis_apiId_documentation_parts_partId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    delete:
+      operationId: delete_projects_projectId_apis_apiId_documentation_parts_partId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/documentation/parts:
+    get:
+      operationId: get_projects_projectId_apis_apiId_documentation_parts
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_apis_apiId_documentation_parts
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/documentation/versions/{version}:
+    get:
+      operationId: get_projects_projectId_apis_apiId_documentation_versions_version
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/documentation/versions:
+    get:
+      operationId: get_projects_projectId_apis_apiId_documentation_versions
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_apis_apiId_documentation_versions
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/export:
+    get:
+      operationId: get_projects_projectId_apis_apiId_export
+      responses:
+        2XX:
+          description: Success envelope (JSON).
   /projects/{projectId}/apis/{apiId}/gateway-responses/{responseType}:
     get:
       operationId: get_projects_projectId_apis_apiId_gateway_responses_responseType
@@ -232,6 +289,12 @@ paths:
   /projects/{projectId}/apis/{apiId}/gateway-responses:
     get:
       operationId: get_projects_projectId_apis_apiId_gateway_responses
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/import:
+    put:
+      operationId: put_projects_projectId_apis_apiId_import
       responses:
         2XX:
           description: Success envelope (JSON).
@@ -372,6 +435,33 @@ paths:
       responses:
         2XX:
           description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/resources/{resourceId}/methods/{httpMethod}/method-responses/{statusCode}:
+    get:
+      operationId: get_projects_projectId_apis_apiId_resources_resourceId_methods_httpMethod_method_responses_statusCode
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    patch:
+      operationId: patch_projects_projectId_apis_apiId_resources_resourceId_methods_httpMethod_method_responses_statusCode
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    delete:
+      operationId: delete_projects_projectId_apis_apiId_resources_resourceId_methods_httpMethod_method_responses_statusCode
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/resources/{resourceId}/methods/{httpMethod}/method-responses:
+    get:
+      operationId: get_projects_projectId_apis_apiId_resources_resourceId_methods_httpMethod_method_responses
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_apis_apiId_resources_resourceId_methods_httpMethod_method_responses
+      responses:
+        2XX:
+          description: Success envelope (JSON).
   /projects/{projectId}/apis/{apiId}/resources/{resourceId}/methods/{httpMethod}:
     get:
       operationId: get_projects_projectId_apis_apiId_resources_resourceId_methods_httpMethod
@@ -396,33 +486,6 @@ paths:
   /projects/{projectId}/apis/{apiId}/resources/{resourceId}/methods/{httpMethod}/test-invoke:
     post:
       operationId: post_projects_projectId_apis_apiId_resources_resourceId_methods_httpMethod_test_invoke
-      responses:
-        2XX:
-          description: Success envelope (JSON).
-  /projects/{projectId}/apis/{apiId}/resources/{resourceId}/methods/{methodId}/method-responses/{statusCode}:
-    get:
-      operationId: get_projects_projectId_apis_apiId_resources_resourceId_methods_methodId_method_responses_statusCode
-      responses:
-        2XX:
-          description: Success envelope (JSON).
-    patch:
-      operationId: patch_projects_projectId_apis_apiId_resources_resourceId_methods_methodId_method_responses_statusCode
-      responses:
-        2XX:
-          description: Success envelope (JSON).
-    delete:
-      operationId: delete_projects_projectId_apis_apiId_resources_resourceId_methods_methodId_method_responses_statusCode
-      responses:
-        2XX:
-          description: Success envelope (JSON).
-  /projects/{projectId}/apis/{apiId}/resources/{resourceId}/methods/{methodId}/method-responses:
-    get:
-      operationId: get_projects_projectId_apis_apiId_resources_resourceId_methods_methodId_method_responses
-      responses:
-        2XX:
-          description: Success envelope (JSON).
-    post:
-      operationId: post_projects_projectId_apis_apiId_resources_resourceId_methods_methodId_method_responses
       responses:
         2XX:
           description: Success envelope (JSON).
@@ -464,6 +527,23 @@ paths:
       responses:
         2XX:
           description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/routes/{routeId}/responses/{responseId}:
+    delete:
+      operationId: delete_projects_projectId_apis_apiId_routes_routeId_responses_responseId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/routes/{routeId}/responses:
+    get:
+      operationId: get_projects_projectId_apis_apiId_routes_routeId_responses
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_apis_apiId_routes_routeId_responses
+      responses:
+        2XX:
+          description: Success envelope (JSON).
   /projects/{projectId}/apis/{apiId}/routes/{routeId}:
     get:
       operationId: get_projects_projectId_apis_apiId_routes_routeId
@@ -488,6 +568,19 @@ paths:
           description: Success envelope (JSON).
     post:
       operationId: post_projects_projectId_apis_apiId_routes
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/sdks/{jobId}:
+    # no exported methods found
+  /projects/{projectId}/apis/{apiId}/stages/{stageName}/agent-tools:
+    get:
+      operationId: get_projects_projectId_apis_apiId_stages_stageName_agent_tools
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    put:
+      operationId: put_projects_projectId_apis_apiId_stages_stageName_agent_tools
       responses:
         2XX:
           description: Success envelope (JSON).
@@ -526,6 +619,34 @@ paths:
           description: Success envelope (JSON).
     delete:
       operationId: delete_projects_projectId_apis_apiId_stages_stageName_canary
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/stages/{stageName}/connections/{connectionId}:
+    get:
+      operationId: get_projects_projectId_apis_apiId_stages_stageName_connections_connectionId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_apis_apiId_stages_stageName_connections_connectionId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    delete:
+      operationId: delete_projects_projectId_apis_apiId_stages_stageName_connections_connectionId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/stages/{stageName}/documentation-version:
+    put:
+      operationId: put_projects_projectId_apis_apiId_stages_stageName_documentation_version
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/stages/{stageName}/export:
+    get:
+      operationId: get_projects_projectId_apis_apiId_stages_stageName_export
       responses:
         2XX:
           description: Success envelope (JSON).
@@ -568,6 +689,12 @@ paths:
       responses:
         2XX:
           description: Success envelope (JSON).
+  /projects/{projectId}/apis/{apiId}/stages/{stageName}/sdks:
+    post:
+      operationId: post_projects_projectId_apis_apiId_stages_stageName_sdks
+      responses:
+        2XX:
+          description: Success envelope (JSON).
   /projects/{projectId}/apis/{apiId}/stages/{stageName}/throttle:
     get:
       operationId: get_projects_projectId_apis_apiId_stages_stageName_throttle
@@ -587,6 +714,12 @@ paths:
           description: Success envelope (JSON).
     post:
       operationId: post_projects_projectId_apis_apiId_stages
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/apis/import:
+    post:
+      operationId: post_projects_projectId_apis_import
       responses:
         2XX:
           description: Success envelope (JSON).
@@ -680,6 +813,91 @@ paths:
       responses:
         2XX:
           description: Success envelope (JSON).
+  /projects/{projectId}/domains/{domainId}/access-associations:
+    post:
+      operationId: post_projects_projectId_domains_domainId_access_associations
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/domains/{domainId}/certificate:
+    post:
+      operationId: post_projects_projectId_domains_domainId_certificate
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/domains/{domainId}/mappings/{mappingId}:
+    delete:
+      operationId: delete_projects_projectId_domains_domainId_mappings_mappingId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/domains/{domainId}/mappings:
+    get:
+      operationId: get_projects_projectId_domains_domainId_mappings
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_domains_domainId_mappings
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/domains/{domainId}:
+    get:
+      operationId: get_projects_projectId_domains_domainId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    patch:
+      operationId: patch_projects_projectId_domains_domainId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    delete:
+      operationId: delete_projects_projectId_domains_domainId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/domains/{domainId}/routing-rules/{ruleId}:
+    delete:
+      operationId: delete_projects_projectId_domains_domainId_routing_rules_ruleId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/domains/{domainId}/routing-rules/reorder:
+    post:
+      operationId: post_projects_projectId_domains_domainId_routing_rules_reorder
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/domains/{domainId}/routing-rules:
+    get:
+      operationId: get_projects_projectId_domains_domainId_routing_rules
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_domains_domainId_routing_rules
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/domains/{domainId}/verify:
+    post:
+      operationId: post_projects_projectId_domains_domainId_verify
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/domains:
+    get:
+      operationId: get_projects_projectId_domains
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_domains
+      responses:
+        2XX:
+          description: Success envelope (JSON).
   /projects/{projectId}/event-subscriptions/{subscriptionId}:
     delete:
       operationId: delete_projects_projectId_event_subscriptions_subscriptionId
@@ -745,6 +963,73 @@ paths:
   /projects/{projectId}/metrics:
     get:
       operationId: get_projects_projectId_metrics
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/portals/{portalId}/links:
+    get:
+      operationId: get_projects_projectId_portals_portalId_links
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_portals_portalId_links
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/portals/{portalId}/publish:
+    post:
+      operationId: post_projects_projectId_portals_portalId_publish
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/portals/{portalId}:
+    get:
+      operationId: get_projects_projectId_portals_portalId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    patch:
+      operationId: patch_projects_projectId_portals_portalId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/portals:
+    get:
+      operationId: get_projects_projectId_portals
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_portals
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/products/{productId}/pages:
+    post:
+      operationId: post_projects_projectId_products_productId_pages
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/products/{productId}:
+    put:
+      operationId: put_projects_projectId_products_productId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    patch:
+      operationId: patch_projects_projectId_products_productId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/products:
+    get:
+      operationId: get_projects_projectId_products
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_products
       responses:
         2XX:
           description: Success envelope (JSON).
@@ -885,6 +1170,28 @@ paths:
       responses:
         2XX:
           description: Success envelope (JSON).
+  /projects/{projectId}/truststores/{truststoreId}:
+    get:
+      operationId: get_projects_projectId_truststores_truststoreId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_truststores_truststoreId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/truststores:
+    get:
+      operationId: get_projects_projectId_truststores
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_truststores
+      responses:
+        2XX:
+          description: Success envelope (JSON).
   /projects/{projectId}/usage-plans/{planId}/keys/{keyId}/usage:
     patch:
       operationId: patch_projects_projectId_usage_plans_planId_keys_keyId_usage
@@ -948,6 +1255,85 @@ paths:
           description: Success envelope (JSON).
     post:
       operationId: post_projects_projectId_usage_plans
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/waf/ip-sets/{setId}:
+    get:
+      operationId: get_projects_projectId_waf_ip_sets_setId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    patch:
+      operationId: patch_projects_projectId_waf_ip_sets_setId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/waf/ip-sets:
+    get:
+      operationId: get_projects_projectId_waf_ip_sets
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_waf_ip_sets
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/waf/regex-sets/{setId}:
+    get:
+      operationId: get_projects_projectId_waf_regex_sets_setId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/waf/regex-sets:
+    get:
+      operationId: get_projects_projectId_waf_regex_sets
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_waf_regex_sets
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/waf/web-acls/{aclId}/associations/{associationId}:
+    delete:
+      operationId: delete_projects_projectId_waf_web_acls_aclId_associations_associationId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/waf/web-acls/{aclId}/associations:
+    post:
+      operationId: post_projects_projectId_waf_web_acls_aclId_associations
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/waf/web-acls/{aclId}:
+    get:
+      operationId: get_projects_projectId_waf_web_acls_aclId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    patch:
+      operationId: patch_projects_projectId_waf_web_acls_aclId
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/waf/web-acls/{aclId}/sampled-requests:
+    get:
+      operationId: get_projects_projectId_waf_web_acls_aclId_sampled_requests
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+  /projects/{projectId}/waf/web-acls:
+    get:
+      operationId: get_projects_projectId_waf_web_acls
+      responses:
+        2XX:
+          description: Success envelope (JSON).
+    post:
+      operationId: post_projects_projectId_waf_web_acls
       responses:
         2XX:
           description: Success envelope (JSON).

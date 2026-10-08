@@ -9,11 +9,12 @@ const deps = {
   createControlDb: (client, options) => withProcessingTables(createControlDb(client, options), client),
 };
 
+// Next.js needs one slug name per segment, so this folder reuses [httpMethod]; the value is the method id.
 export const GET = route(
   async ({ db, actor, projectId, params }) => listMethodResponses(db, actor, {
     projectId,
     apiId: params.apiId,
-    methodId: params.methodId,
+    methodId: params.httpMethod,
   }),
   { permission: "pods.apis.view", deps },
 );
@@ -22,7 +23,7 @@ export const POST = route(
   async ({ db, actor, projectId, params, body, requestId }) => createMethodResponse(db, actor, {
     projectId,
     apiId: params.apiId,
-    methodId: params.methodId,
+    methodId: params.httpMethod,
     input: body,
     requestId,
   }),

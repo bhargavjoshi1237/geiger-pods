@@ -4,6 +4,7 @@ import {
   createMetricsAggregator, percentileFromHistogram, mergeHistograms,
   dimensionsFor, reduceSeries, bucketFor,
 } from "../../lib/gateway/core/observe/metrics.mjs";
+import { buildRequestEvent } from "../../lib/gateway/core/observe/event.mjs";
 
 function restEvent(index, { status = 200, latencyMs = 10, stage = "prod", canary = false, cache = null } = {}) {
   return {
@@ -95,4 +96,27 @@ test("S10: reduceSeries computes Sum/Average/p90 over period buckets", () => {
   assert.equal(reduceSeries(points, "SampleCount", 300)[0].value, 4);
   assert.equal(reduceSeries(points, "Minimum", 300)[0].value, 4);
   assert.equal(reduceSeries(points, "Maximum", 300)[0].value, 12);
+});
+
+test("S10: CacheStoreSkipped propagates from the method-response flag into the request event and the metric row (F31)", () => {
+  const base = {
+    requestId: "r-1", startTime: Date.UTC(2026, 9, 9, 12, 0, 0),
+    context: { requestId: "r-1", stage: "prod" },
+    artifact: { projectId: "p1", apiId: "a1", apiPublicId: "a1b2c3d4e5", protocol: "REST" },
+  };
+  // The `methodResponse` phase sets `ctx.cacheStoreSkipped` when the
+  // stage-cache budget refuses a store; the event must carry it so the
+  // metric row emits (previously dropped by `buildRequestEvent`).
+  const skipped = buildRequestEvent({ ...base, cacheStoreSkipped: true }, new Response("{}", { status: 200 }));
+  assert.equal(skipped.cacheStoreSkipped, true);
+  const clean = buildRequestEvent({ ...base }, new Response("{}", { status: 200 }));
+  assert.equal(clean.cacheStoreSkipped, false);
+
+  const aggregator = createMetricsAggregator();
+  aggregator.record({ ...restEvent(1, {}), cacheStoreSkipped: true });
+  aggregator.record(restEvent(2, {}));
+  const rows = aggregator.flush();
+  const row = rows.find((entry) => entry.metric === "CacheStoreSkipped");
+  assert.ok(row, "expected a CacheStoreSkipped row");
+  assert.equal(row.count, 1);
 });

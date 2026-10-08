@@ -24,7 +24,10 @@ export const API_TABS = [
   { slug: "deployments", title: "Deployments", protocols: ["REST", "HTTP", "WEBSOCKET"], owner: "S05", wired: true },
   { slug: "stages", title: "Stages", protocols: ["REST", "HTTP", "WEBSOCKET"], owner: "S05", wired: true },
   { slug: "monitoring", title: "Monitoring", protocols: ["REST", "HTTP", "WEBSOCKET"], owner: "S10", wired: true },
-  { slug: "docs", title: "Docs", protocols: ["REST", "HTTP"], owner: "S13", wired: false },
+  { slug: "docs", title: "Docs", protocols: ["REST"], owner: "S13", wired: true },
+  { slug: "import-export", title: "Import / Export", protocols: ["REST", "HTTP"], owner: "S13", wired: true },
+  { slug: "sdks", title: "SDKs", protocols: ["REST"], owner: "S13", wired: true },
+  { slug: "agent-tools", title: "Agent tools", protocols: ["REST"], owner: "S13", wired: true },
   { slug: "settings", title: "Settings", protocols: ["REST", "HTTP", "WEBSOCKET"], owner: null, wired: true },
 ];
 

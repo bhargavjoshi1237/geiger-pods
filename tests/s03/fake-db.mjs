@@ -223,6 +223,18 @@ export function createFakeDb(options = {}) {
       }
       return count;
     },
+    // F16 compensation: clears `deleted_at` (mirrors the Supabase port).
+    async restoreMethods({ ids }) {
+      let count = 0;
+      for (const id of ids ?? []) {
+        const row = methods.get(id);
+        if (row && row.deleted_at) {
+          methods.set(id, { ...row, deleted_at: null });
+          count += 1;
+        }
+      }
+      return count;
+    },
 
     // --- http_routes ---
     async listRoutes({ apiId, limit = 25, cursor = null }) {

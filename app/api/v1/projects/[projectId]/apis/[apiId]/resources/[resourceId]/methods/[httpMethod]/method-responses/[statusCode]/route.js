@@ -9,8 +9,9 @@ const deps = {
   createControlDb: (client, options) => withProcessingTables(createControlDb(client, options), client),
 };
 
+// Next.js needs one slug name per segment, so this folder reuses [httpMethod]; the value is the method id.
 function target(params) {
-  return { apiId: params.apiId, methodId: params.methodId, statusCode: params.statusCode };
+  return { apiId: params.apiId, methodId: params.httpMethod, statusCode: params.statusCode };
 }
 
 export const GET = route(

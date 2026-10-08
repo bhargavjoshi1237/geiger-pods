@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Postman Collection Format v2.1 (vendored subset for offline validation)",
+  "description": "Trimmed from the official https://schema.getpostman.com/json/collection/v2.1.0/collection.json to the constructs the S13 postman export emits (info, item tree, request, url, header, body, response stubs, variables). Full schema requires network; this subset is pinned so tests stay deterministic.",
+  "type": "object",
+  "required": ["info", "item"],
+  "properties": {
+    "info": {
+      "type": "object",
+      "required": ["name", "schema"],
+      "properties": {
+        "name": { "type": "string" },
+        "schema": { "type": "string", "pattern": "collection/v2\\.1" }
+      }
+    },
+    "variable": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["key", "value"],
+        "properties": { "key": { "type": "string" }, "value": { "type": "string" } }
+      }
+    },
+    "item": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/item" }
+    }
+  },
+  "definitions": {
+    "item": {
+      "type": "object",
+      "required": ["name"],
+      "anyOf": [
+        { "required": ["item"] },
+        { "required": ["request"] }
+      ],
+      "properties": {
+        "name": { "type": "string" },
+        "item": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/item" }
+        },
+        "request": {
+          "anyOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "required": ["url", "method"],
+              "properties": {
+                "method": { "type": "string" },
+                "header": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["key", "value"],
+                    "properties": { "key": { "type": "string" }, "value": { "type": "string" } }
+                  }
+                },
+                "url": {
+                  "anyOf": [
+                    { "type": "string" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "raw": { "type": "string" },
+                        "protocol": { "type": "string" },
+                        "host": { "anyOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
+                        "path": { "anyOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
+                        "query": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": ["key", "value"],
+                            "properties": { "key": { "type": "string" }, "value": { "type": "string" } }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "body": { "type": "object" },
+                "description": { "type": "string" }
+              }
+            }
+          ]
+        },
+        "response": { "type": "array" }
+      }
+    }
+  }
+}

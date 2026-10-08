@@ -25,6 +25,16 @@ import { AuditScreen } from "./audit/audit_screen";
 import { TokensScreen } from "./admin/tokens_screen";
 import { StacksPanel } from "./admin/stacks_panel";
 import { SigningCredentialsScreen } from "./auth/credentials_screen";
+import { DomainsScreen } from "./domains/domains_screen";
+import { TruststoresScreen } from "./domains/truststores_screen";
+import { WafScreen } from "./waf/waf_screen";
+import { WebsocketScreen } from "./websocket/websocket_screen";
+import { ImportWizard } from "./distribution/import_wizard";
+import { ExportDialog } from "./distribution/export_dialog";
+import { DocsTab } from "./distribution/docs_tab";
+import { SdkPanel } from "./distribution/sdk_panel";
+import { AgentToolsPanel } from "./distribution/agent_tools_panel";
+import { PortalListScreen } from "./distribution/portals_list";
 
 const screens = {
   overview: PodsOverview,
@@ -38,6 +48,16 @@ const screens = {
   apiList: ApiListScreen,
   apiDetail: ApiDetailScreen,
   connectorList: ConnectorsScreen,
+  domainList: DomainsScreen,
+  truststoreList: TruststoresScreen,
+  wafList: WafScreen,
+  websocket: WebsocketScreen,
+  importWizard: ImportWizard,
+  exportDialog: ExportDialog,
+  docsTab: DocsTab,
+  sdkPanel: SdkPanel,
+  agentTools: AgentToolsPanel,
+  portalList: PortalListScreen,
   usagePlans: UsagePlansScreen,
   apiKeys: ApiKeysScreen,
   monitoring: MonitoringOverview,

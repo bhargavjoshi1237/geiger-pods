@@ -34,15 +34,18 @@ test("C1: workspace routes map every delivered screen (S04–S10, S14, S07 crede
   assert.equal(screens.resolveScreen(["settings", "billing"]), null);
 });
 
-test("C1: every API detail tab is wired except S13 docs", () => {
+test("C1: every API detail tab is wired (S13 docs + import/export delivered)", () => {
   const unwired = tabs.API_TABS.filter((entry) => !entry.wired);
-  assert.deepEqual(unwired.map((entry) => entry.slug), ["docs"]);
+  assert.deepEqual(unwired.map((entry) => entry.slug), []);
   assert.equal(tabs.API_TABS.find((entry) => entry.slug === "docs")?.owner, "S13");
+  assert.equal(tabs.API_TABS.find((entry) => entry.slug === "docs")?.wired, true, "docs must be wired");
+  assert.equal(tabs.API_TABS.find((entry) => entry.slug === "import-export")?.wired, true, "import-export must be wired");
   for (const slug of ["integrations", "authorizers", "models", "cors", "gateway-responses", "deployments", "stages", "monitoring"]) {
     assert.equal(tabs.API_TABS.find((entry) => entry.slug === slug)?.wired, true, `${slug} must be wired`);
   }
   assert.ok(tabs.tabsForProtocol("REST").some((entry) => entry.slug === "authorizers"));
   assert.ok(tabs.tabsForProtocol("HTTP").some((entry) => entry.slug === "cors"));
+  assert.ok(tabs.tabsForProtocol("REST").some((entry) => entry.slug === "docs"));
 });
 
 test("C1: registry mounts every delivered screen", async () => {

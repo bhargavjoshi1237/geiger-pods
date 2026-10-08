@@ -18,6 +18,7 @@ export function OverviewTab({ api }) {
         <Row label="Protocol">{api.protocol}</Row>
         <Row label="Version label">{api.apiVersion || "—"}</Row>
         <Row label="Endpoint type">{api.endpointType}</Row>
+        <Row label="IP address type">{api.ipAddressType === "dualstack" ? "Dual-stack (IPv4 + IPv6)" : "IPv4 only"}</Row>
         <Row label="Default endpoint">{api.disableDefaultEndpoint ? "Disabled" : "Enabled"}</Row>
         <Row label="Missing route behavior">{api.missingRouteBehavior === "not_found" ? "404 Not Found" : "403 Missing Authentication Token (AWS default)"}</Row>
       </dl>

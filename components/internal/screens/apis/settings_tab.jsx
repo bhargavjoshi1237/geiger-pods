@@ -30,6 +30,8 @@ export function SettingsTab({ api }) {
     description: api.description ?? "",
     apiVersion: api.apiVersion ?? "",
     endpointType: api.endpointType ?? "REGIONAL",
+    ipAddressType: api.ipAddressType ?? "ipv4",
+    disableDefaultEndpoint: api.disableDefaultEndpoint ?? false,
     apiKeySource: api.apiKeySource ?? "HEADER",
     binaryMediaTypes: (api.binaryMediaTypes ?? []).join("\n"),
     minimumCompressionSize: api.minimumCompressionSize ?? "",
@@ -53,6 +55,8 @@ export function SettingsTab({ api }) {
         description: form.description,
         apiVersion: form.apiVersion.trim() || null,
         endpointType: form.endpointType,
+        ipAddressType: form.ipAddressType,
+        disableDefaultEndpoint: form.disableDefaultEndpoint,
       };
       if (rest) {
         body.apiKeySource = form.apiKeySource;
@@ -122,7 +126,35 @@ export function SettingsTab({ api }) {
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-2">
+            <Label>IP address type</Label>
+            <Select value={form.ipAddressType} onValueChange={set("ipAddressType")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ipv4">IPv4 only</SelectItem>
+                <SelectItem value="dualstack">Dual-stack (IPv4 + IPv6)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={form.disableDefaultEndpoint}
+            onChange={(event) => setForm((current) => ({ ...current, disableDefaultEndpoint: event.target.checked }))}
+          />
+          <span>
+            Disable default endpoint
+            <span className="block text-xs text-muted-foreground">
+              Takes effect on the next deployment. Required for mTLS (custom domains keep serving).
+            </span>
+          </span>
+        </label>
+        {form.endpointType === "PRIVATE" && rest ? <p className="rounded-md border p-2 text-xs text-muted-foreground">
+          Private APIs are reachable only through a Pods Connector in ingress mode and must attach a resource
+          policy allowing an aws:SourceVpce / aws:SourceVpc — use the resource policy editor below.
+        </p> : null}
         {rest ? <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>API key source</Label>

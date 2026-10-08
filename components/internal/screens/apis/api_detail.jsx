@@ -19,6 +19,11 @@ import { AuthorizersTab } from "../auth/authorizers_tab";
 import { CorsPanel, GatewayResponsesPanel, ModelsPanel } from "./tab_panels";
 import { DeploymentsTab } from "../releases/deployments_tab";
 import { StagesTab } from "../releases/stages_tab";
+import { DocsTab } from "../distribution/docs_tab";
+import { ImportWizard } from "../distribution/import_wizard";
+import { ExportDialog } from "../distribution/export_dialog";
+import { SdkPanel } from "../distribution/sdk_panel";
+import { AgentToolsPanel } from "../distribution/agent_tools_panel";
 import { DeployButton } from "../releases/deploy_dialog";
 import { MonitoringOverview } from "../monitoring/monitoring_overview";
 
@@ -56,6 +61,10 @@ function TabBody({ tab, api, stages }) {
     case "gateway-responses": return <GatewayResponsesPanel api={api} />;
     case "deployments": return <DeploymentsTab api={api} stages={stages} />;
     case "stages": return <StagesTab api={api} />;
+    case "docs": return <DocsTab api={api} stages={stages} />;
+    case "import-export": return <div className="space-y-4"><ImportWizard api={api} /><ExportDialog api={api} stages={stages} /></div>;
+    case "sdks": return <SdkPanel api={api} stages={stages} />;
+    case "agent-tools": return <AgentToolsPanel api={api} stages={stages} />;
     case "monitoring": return <MonitoringPanel api={api} />;
     case "settings": return <SettingsTab api={api} />;
     default: return null;
