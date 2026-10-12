@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import { Database, Plus } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 
@@ -18,7 +17,7 @@ import { toast } from "sonner";
 export function ModelsTab({ models = [], loading = false, error = null, onCreate, onUpdate, onDelete, canWrite = false }) {
   const [creating, setCreating] = useState(false);
 
-  if (loading) return <LogoLoading label="Loading models…" />;
+  if (loading) return <LoadingArea label="Loading models" />;
   if (error) return <EmptyState title="Could not load models" description={String(error?.message ?? error)} />;
 
   return (
@@ -120,7 +119,7 @@ export function ModelForm({ initial, submitLabel = "Create model", onSubmit, onC
       <div>
         <Label htmlFor="model-sample">Generate from sample JSON</Label>
         <Textarea id="model-sample" className="font-mono text-xs" rows={4} value={sampleText} onChange={(event) => setSampleText(event.target.value)} placeholder='{"name": "Ada", "age": 36}' spellCheck={false} />
-        <Button type="button" variant="outline" onClick={generateFromSample}>Generate schema</Button>
+        <Button type="button" variant="outline" className="mt-2" onClick={generateFromSample}>Generate schema</Button>
       </div>
       {schemaError ? <p className="text-sm text-red-600">{schemaError}</p> : null}
       <div className="flex gap-2">

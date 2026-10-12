@@ -4,9 +4,10 @@
 // MCP URL and a client config snippet.
 import { useEffect, useState } from "react";
 import { Bot } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
-import { LogoLoading } from "@geiger/ui/logo-loading";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
+import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -64,7 +65,7 @@ export function AgentToolsPanel({ api, stages }) {
       </div>
     );
   }
-  if (state.status === "loading") return <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard>;
+  if (state.status === "loading") return <SectionCard><LoadingArea label="Loading agent tools" /></SectionCard>;
   if (state.status === "error") {
     return <SectionCard><EmptyState icon={Bot} title="Agent tools unavailable" description={state.error} /></SectionCard>;
   }
@@ -74,17 +75,18 @@ export function AgentToolsPanel({ api, stages }) {
       <ScreenHeader title="Agent tools" description="Expose this stage as MCP tools (Streamable HTTP). Calls run through the normal pipeline: authorizers, keys, throttling, WAF and logs all apply." />
       <SectionCard>
         <div className="flex flex-wrap items-center gap-2">
-          <select value={stageName} onChange={(event) => { setStageName(event.target.value); setState({ status: "loading", config: null, error: null }); }} className="rounded-md border border-border bg-background px-2 py-1 text-sm" aria-label="Stage">
-            {(stages ?? []).map((entry) => <option key={entry.name} value={entry.name}>{entry.name}</option>)}
-          </select>
+          <Select value={stageName} onValueChange={(value) => { setStageName(value); setState({ status: "loading", config: null, error: null }); }}>
+            <SelectTrigger size="sm" className="w-full sm:w-48" aria-label="Stage"><SelectValue /></SelectTrigger>
+            <SelectContent>{(stages ?? []).map((entry) => <SelectItem key={entry.name} value={entry.name}>{entry.name}</SelectItem>)}</SelectContent>
+          </Select>
           {canWrite ? (
             <>
-              <Button disabled={busy || !stageName} onClick={() => save(true)}>Enable</Button>
-              <Button variant="outline" disabled={busy || !stageName} onClick={() => save(false)}>Disable</Button>
+              <Button size="sm" disabled={busy || !stageName} onClick={() => save(true)}>Enable</Button>
+              <Button variant="outline" size="sm" disabled={busy || !stageName} onClick={() => save(false)}>Disable</Button>
             </>
           ) : null}
         </div>
-        <textarea value={allowText} onChange={(event) => setAllowText(event.target.value)} rows={4} placeholder={"One tool per line (operationName or METHOD /path). Empty = all operations."} className="mt-2 w-full rounded-md border border-border bg-background p-2 font-mono text-xs" aria-label="Allowed operations" />
+        <Textarea value={allowText} onChange={(event) => setAllowText(event.target.value)} rows={4} placeholder={"One tool per line (operationName or METHOD /path). Empty = all operations."} className="mt-2 font-mono text-xs" aria-label="Allowed operations" spellCheck={false} />
         {state.config?.enabled ? (
           <div className="mt-2 space-y-2 text-sm">
             <p className="font-mono text-xs">MCP URL: {mcpUrl}</p>

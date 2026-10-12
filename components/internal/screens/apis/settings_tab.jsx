@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Settings2, Trash2 } from "lucide-react";
 import { EmptyState, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
+import { Checkbox } from "@geiger/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
@@ -137,20 +138,19 @@ export function SettingsTab({ api }) {
             </Select>
           </div>
         </div>
-        <label className="flex items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            className="mt-1"
+        <div className="flex items-start gap-2">
+          <Checkbox
+            id="settings-disable-default-endpoint"
             checked={form.disableDefaultEndpoint}
-            onChange={(event) => setForm((current) => ({ ...current, disableDefaultEndpoint: event.target.checked }))}
+            onCheckedChange={(checked) => setForm((current) => ({ ...current, disableDefaultEndpoint: checked === true }))}
           />
-          <span>
-            Disable default endpoint
-            <span className="block text-xs text-muted-foreground">
+          <div className="grid gap-1">
+            <Label htmlFor="settings-disable-default-endpoint" className="font-normal">Disable default endpoint</Label>
+            <p className="text-xs text-muted-foreground">
               Takes effect on the next deployment. Required for mTLS (custom domains keep serving).
-            </span>
-          </span>
-        </label>
+            </p>
+          </div>
+        </div>
         {form.endpointType === "PRIVATE" && rest ? <p className="rounded-md border p-2 text-xs text-muted-foreground">
           Private APIs are reachable only through a Pods Connector in ingress mode and must attach a resource
           policy allowing an aws:SourceVpce / aws:SourceVpc — use the resource policy editor below.

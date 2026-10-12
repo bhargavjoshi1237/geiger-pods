@@ -6,10 +6,10 @@
 
 import { useState } from "react";
 import { FileDiff, Play } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
-import { LogoLoading } from "@geiger/ui/logo-loading";
+import { Input } from "@geiger/ui/input";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
@@ -55,16 +55,16 @@ export function StacksPanel() {
     <ScreenHeader
       title="Stacks"
       description="Declarative configuration: plan, apply and drift for pods.yaml."
-      actions={<div className="flex gap-2">
+      actions={<>
         <Button variant="outline" disabled={busy} onClick={() => run("plan")}><FileDiff className="size-4" />Plan</Button>
         <Button variant="outline" disabled={busy} onClick={() => run("drift")}>Drift</Button>
         <Button disabled={busy} onClick={() => run("apply")}><Play className="size-4" />Apply</Button>
-      </div>}
+      </>}
     />
     <SectionCard title="Stack file" description="Paste the JSON form of pods.yaml. Secret values are never accepted here.">
       <div className="space-y-3">
-        <input
-          className="w-64 rounded-md border border-input bg-background px-3 py-2 text-sm"
+        <Input
+          className="sm:w-64"
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="Stack name"
@@ -73,7 +73,7 @@ export function StacksPanel() {
         <Textarea rows={10} value={text} onChange={(event) => setText(event.target.value)} spellCheck={false} className="font-mono text-xs" />
       </div>
     </SectionCard>
-    {busy ? <SectionCard><div className="flex justify-center py-6"><LogoLoading /></div></SectionCard> : null}
+    {busy ? <LoadingArea panel label="Running stack operation" /> : null}
     {result ? <SectionCard title={`${result.action} result`}>
       {result.action === "plan" && (result.data.changes ?? []).length === 0 ? <EmptyState icon={FileDiff} title="No changes" description="The stack matches the desired state." /> : null}
       <ul className="divide-y divide-border">

@@ -10,13 +10,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Copy, Globe, LockKeyhole, Plus } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -45,8 +44,8 @@ function DnsRecords({ records }) {
     <p className="text-sm font-medium">Add these DNS records:</p>
     {records.map((record) => <div key={`${record.type}-${record.name}`} className="flex items-center gap-2 rounded-md border p-2 font-mono text-xs">
       <Badge variant="outline">{record.type}</Badge>
-      <span className="truncate">{record.name} → {record.value}</span>
-      <Button variant="ghost" size="sm" onClick={() => { void navigator.clipboard?.writeText(record.value); toast.success("Record value copied."); }}>
+      <span className="min-w-0 flex-1 truncate">{record.name} → {record.value}</span>
+      <Button variant="ghost" size="icon-sm" aria-label="Copy record value" onClick={() => { void navigator.clipboard?.writeText(record.value); toast.success("Record value copied."); }}>
         <Copy className="size-4" />
       </Button>
     </div>)}
@@ -77,7 +76,7 @@ function MappingsTab({ projectId, domain }) {
     .find((entry) => entry.basePath === "" || preview === `/${entry.basePath}` || preview.startsWith(`/${entry.basePath}/`));
   return <div className="space-y-4">
     {items.length === 0 ? <EmptyState title="No mappings yet" description="Map a base path to an API stage." /> : <ul className="space-y-2">
-      {items.map((entry) => <li key={entry.id} className="flex items-center gap-2 rounded-md border p-2 text-sm">
+      {items.map((entry) => <li key={entry.id} className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm">
         <code className="font-mono">/{entry.basePath}</code><span>→</span><span>{entry.apiId} · {entry.stage}</span>
         <Button variant="ghost" size="sm" className="ml-auto" onClick={async () => {
           try {
@@ -91,9 +90,9 @@ function MappingsTab({ projectId, domain }) {
       </li>)}
     </ul>}
     <div className="flex flex-wrap items-end gap-2">
-      <div><Label>API id</Label><Input value={form.apiId} onChange={(event) => setForm({ ...form, apiId: event.target.value })} placeholder="api public id" /></div>
-      <div><Label>Stage</Label><Input value={form.stage} onChange={(event) => setForm({ ...form, stage: event.target.value })} /></div>
-      <div><Label>Base path</Label><Input value={form.basePath} onChange={(event) => setForm({ ...form, basePath: event.target.value })} placeholder="(empty)" /></div>
+      <div><Label htmlFor="domain-mapping-api">API id</Label><Input id="domain-mapping-api" value={form.apiId} onChange={(event) => setForm({ ...form, apiId: event.target.value })} placeholder="api public id" /></div>
+      <div><Label htmlFor="domain-mapping-stage">Stage</Label><Input id="domain-mapping-stage" value={form.stage} onChange={(event) => setForm({ ...form, stage: event.target.value })} /></div>
+      <div><Label htmlFor="domain-mapping-base">Base path</Label><Input id="domain-mapping-base" value={form.basePath} onChange={(event) => setForm({ ...form, basePath: event.target.value })} placeholder="(empty)" /></div>
       <Button onClick={async () => {
         try {
           await api(projectId, `/${domain.id}/mappings`, { method: "POST", body: JSON.stringify(form) });
@@ -105,9 +104,9 @@ function MappingsTab({ projectId, domain }) {
         }
       }}>Add mapping</Button>
     </div>
-    <div className="flex items-center gap-2 text-sm">
-      <Label>Longest-prefix preview</Label>
-      <Input value={preview} onChange={(event) => setPreview(event.target.value)} className="max-w-xs font-mono" />
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <Label htmlFor="domain-mapping-preview">Longest-prefix preview</Label>
+      <Input id="domain-mapping-preview" value={preview} onChange={(event) => setPreview(event.target.value)} className="max-w-xs font-mono" />
       <span className="text-muted-foreground">{longest ? `→ ${longest.apiId} · ${longest.stage} (/${longest.basePath})` : "→ 403 Forbidden"}</span>
     </div>
   </div>;
@@ -137,9 +136,9 @@ function RulesTab({ projectId, domain }) {
       <span className="text-muted-foreground">{domain.routingMode}</span>
     </div>
     {items.length === 0 ? <EmptyState title="No routing rules" description="Rules evaluate by ascending priority; the first match wins." /> : <ul className="space-y-2">
-      {items.map((entry) => <li key={entry.id} className="flex items-center gap-2 rounded-md border p-2 text-sm">
+      {items.map((entry) => <li key={entry.id} className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm">
         <Badge variant="outline">#{entry.priority}</Badge>
-        <code className="font-mono">{JSON.stringify(entry.conditions)}</code>
+        <code className="min-w-0 break-all font-mono">{JSON.stringify(entry.conditions)}</code>
         <span>→ {entry.action?.invokeApi?.apiId} · {entry.action?.invokeApi?.stage}</span>
         <Button variant="ghost" size="sm" className="ml-auto" onClick={async () => {
           try {
@@ -171,8 +170,8 @@ function MtlsTab({ projectId, domain, onChanged }) {
   }, [projectId]);
   return <div className="space-y-3">
     <p className="text-sm text-muted-foreground">mTLS requires the default endpoint to be disabled; saving mTLS while it is enabled shows a warning.</p>
-    <div className="flex items-end gap-2">
-      <div><Label>Truststore id</Label><Input value={truststoreId} onChange={(event) => setTruststoreId(event.target.value)} placeholder="truststore uuid" /></div>
+    <div className="flex flex-wrap items-end gap-2">
+      <div><Label htmlFor="domain-mtls-truststore">Truststore id</Label><Input id="domain-mtls-truststore" value={truststoreId} onChange={(event) => setTruststoreId(event.target.value)} placeholder="truststore uuid" /></div>
       <Button onClick={async () => {
         try {
           await api(projectId, `/${domain.id}`, { method: "PATCH", body: JSON.stringify({ mtls: truststoreId ? { truststoreId } : null }) });
@@ -192,7 +191,7 @@ function MtlsTab({ projectId, domain, onChanged }) {
 function DomainDetail({ projectId, domain, onChanged, onClose }) {
   const [tab, setTab] = useState("mappings");
   return <SectionCard title={domain.domainName} action={<Button variant="ghost" size="sm" onClick={onClose}>Close</Button>}>
-    <div className="mb-3 flex gap-2">
+    <div className="mb-3 flex flex-wrap gap-2">
       {[["mappings", "API mappings"], ["rules", "Routing rules"], ["mtls", "mTLS"]].map(([key, label]) => <Button key={key} variant={tab === key ? "default" : "outline"} size="sm" onClick={() => setTab(key)}>{label}</Button>)}
       <Button variant="outline" size="sm" className="ml-auto" onClick={async () => {
         try {
@@ -242,28 +241,28 @@ export function DomainsScreen() {
   }, [projectId]);
 
   if (!allowed) return <EmptyState icon={LockKeyhole} title="Access unavailable" description="Your current team access does not allow this screen." />;
-  if (state.status === "loading") return <LogoLoading />;
+  if (state.status === "loading") return <LoadingArea label="Loading domains" />;
   if (state.status === "error") return <EmptyState title="Could not load domains" description={state.error} />;
 
   return <div className="space-y-4">
     <ScreenHeader
       title="Custom domains"
       description="Ownership verification, managed certificates, API mappings and routing rules."
-      action={can("pods.domain.write") ? <Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" />New domain</Button> : null}
+      actions={can("pods.domain.write") ? <Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" />New domain</Button> : null}
     />
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       <Button variant="outline" size="sm" asChild><a href="truststores">Trust stores</a></Button>
       <Button variant="outline" size="sm" asChild><a href="../waf">Web application firewall</a></Button>
     </div>
     {state.items.length === 0 ? <EmptyState icon={Globe} title="No custom domains" description="Create one to serve an API from your own hostname." /> : <SectionCard title="Domains">
       <ul className="space-y-2">
         {state.items.map((entry) => <li key={entry.id}>
-          <button type="button" className="flex w-full items-center gap-3 rounded-md border p-3 text-left text-sm hover:bg-muted/50" onClick={() => setSelected(entry)}>
+          <Button type="button" variant="outline" className="h-auto w-full flex-wrap justify-start gap-3 whitespace-normal p-3 text-left font-normal" onClick={() => setSelected(entry)}>
             <span className="font-mono font-medium">{entry.domainName}</span>
             <Badge variant={STATUS_VARIANT[entry.status] ?? "secondary"}>{entry.status}</Badge>
             <Badge variant="outline">{entry.endpointType}</Badge>
             <span className="ml-auto text-xs text-muted-foreground">cert {entry.certificateExpiresAt ? new Date(entry.certificateExpiresAt).toLocaleDateString() : "—"}</span>
-          </button>
+          </Button>
         </li>)}
       </ul>
     </SectionCard>}
@@ -271,8 +270,8 @@ export function DomainsScreen() {
     <Dialog open={creating} onOpenChange={setCreating}>
       <DialogContent>
         <DialogHeader><DialogTitle>New custom domain</DialogTitle><DialogDescription>Verify ownership, then attach a certificate.</DialogDescription></DialogHeader>
-        <Label>Domain name</Label>
-        <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="api.example.com" />
+        <Label htmlFor="domain-new-name">Domain name</Label>
+        <Input id="domain-new-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="api.example.com" />
         {fresh ? <DnsRecords records={fresh.dnsRecords} /> : null}
         <DialogFooter>
           <Button variant="outline" onClick={() => { setCreating(false); setFresh(null); }}>Close</Button>

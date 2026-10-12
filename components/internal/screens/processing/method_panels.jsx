@@ -2,6 +2,10 @@
 
 import { ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Label } from "@geiger/ui/label";
+import { Button } from "@geiger/ui/button";
+import { Input } from "@geiger/ui/input";
+import { Checkbox } from "@geiger/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { RestMappingEditor, PassthroughPicker } from "./parameter_mapping_editor";
 import { TemplateEditor } from "./template_editor";
 
@@ -10,29 +14,29 @@ import { TemplateEditor } from "./template_editor";
  * the orchestrator later): method request, integration request, integration
  * response and method response.
  */
+const NONE = "__none__";
+
 export function MethodRequestEditor({ value = {}, validators = [], models = [], onChange }) {
   return (
     <div className="space-y-4">
       <ScreenHeader title="Method request" description="Required parameters, request validator and per-content-type request models." />
       <SectionCard title="Validator">
         <Label htmlFor="method-validator">Request validator</Label>
-        <select
-          id="method-validator"
-          className="w-full rounded border p-2 text-sm"
-          value={value.validatorId ?? ""}
-          onChange={(event) => onChange?.({ ...value, validatorId: event.target.value || null })}
-        >
-          <option value="">None</option>
-          {validators.map((validator) => <option key={validator.id ?? validator.name} value={validator.id ?? validator.name}>{validator.name}</option>)}
-        </select>
-        <label className="mt-2 flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={value.validateBody ?? true} onChange={(event) => onChange?.({ ...value, validateBody: event.target.checked })} />
-          Validate request body
-        </label>
-        <label className="mt-2 flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={value.validateParameters ?? false} onChange={(event) => onChange?.({ ...value, validateParameters: event.target.checked })} />
-          Validate request parameters
-        </label>
+        <Select value={value.validatorId || NONE} onValueChange={(next) => onChange?.({ ...value, validatorId: next === NONE ? null : next })}>
+          <SelectTrigger id="method-validator" className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NONE}>None</SelectItem>
+            {validators.map((validator) => <SelectItem key={validator.id ?? validator.name} value={validator.id ?? validator.name}>{validator.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <div className="mt-2 flex items-center gap-2">
+          <Checkbox id="method-validate-body" checked={value.validateBody ?? true} onCheckedChange={(checked) => onChange?.({ ...value, validateBody: checked === true })} />
+          <Label htmlFor="method-validate-body" className="font-normal">Validate request body</Label>
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <Checkbox id="method-validate-params" checked={value.validateParameters ?? false} onCheckedChange={(checked) => onChange?.({ ...value, validateParameters: checked === true })} />
+          <Label htmlFor="method-validate-params" className="font-normal">Validate request parameters</Label>
+        </div>
       </SectionCard>
       <RestMappingEditor
         title="Request parameters"
@@ -84,9 +88,9 @@ export function IntegrationResponseEditor({ value = {}, onChange }) {
       <ScreenHeader title="Integration response" description="Selection pattern, parameter mapping and templates per backend outcome." />
       <SectionCard title="Selection">
         <Label htmlFor="ir-status">Status code</Label>
-        <input id="ir-status" className="w-full rounded border p-2 font-mono text-sm" value={value.statusCode ?? ""} onChange={(event) => onChange?.({ ...value, statusCode: event.target.value })} placeholder="200" />
+        <Input id="ir-status" className="font-mono" value={value.statusCode ?? ""} onChange={(event) => onChange?.({ ...value, statusCode: event.target.value })} placeholder="200" />
         <Label htmlFor="ir-pattern">Selection pattern (regex, full match; empty = default)</Label>
-        <input id="ir-pattern" className="w-full rounded border p-2 font-mono text-sm" value={value.selectionPattern ?? ""} onChange={(event) => onChange?.({ ...value, selectionPattern: event.target.value })} placeholder="5\d\d" />
+        <Input id="ir-pattern" className="font-mono" value={value.selectionPattern ?? ""} onChange={(event) => onChange?.({ ...value, selectionPattern: event.target.value })} placeholder="5\d\d" />
       </SectionCard>
       <RestMappingEditor
         title="Response mapping"
@@ -129,13 +133,16 @@ function ModelTable({ rows = {}, models = [], onChange }) {
   return (
     <div className="space-y-2">
       {Object.entries(rows).map(([contentType, name]) => (
-        <div key={contentType} className="flex items-center gap-2">
+        <div key={contentType} className="flex flex-wrap items-center gap-2">
           <code className="text-xs">{contentType}</code>
-          <select className="flex-1 rounded border p-2 text-sm" value={name} onChange={(event) => onChange?.({ ...rows, [contentType]: event.target.value })}>
-            {options.includes(name) ? null : <option value={name}>{name}</option>}
-            {options.map((option) => <option key={option} value={option}>{option}</option>)}
-          </select>
-          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => { const next = { ...rows }; delete next[contentType]; onChange?.(next); }}>Remove</button>
+          <Select value={name} onValueChange={(next) => onChange?.({ ...rows, [contentType]: next })}>
+            <SelectTrigger size="sm" className="w-auto min-w-40 flex-1" aria-label={`Model for ${contentType}`}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {options.includes(name) || !name ? null : <SelectItem value={name}>{name}</SelectItem>}
+              {options.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button type="button" variant="outline" size="sm" onClick={() => { const next = { ...rows }; delete next[contentType]; onChange?.(next); }}>Remove</Button>
         </div>
       ))}
       <AddModelRow onAdd={(contentType) => onChange?.({ ...rows, [contentType]: "Empty" })} />
@@ -146,7 +153,7 @@ function ModelTable({ rows = {}, models = [], onChange }) {
 function AddModelRow({ onAdd }) {
   return (
     <form
-      className="flex gap-2"
+      className="flex items-center gap-2"
       onSubmit={(event) => {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
@@ -157,8 +164,8 @@ function AddModelRow({ onAdd }) {
         }
       }}
     >
-      <input name="contentType" className="flex-1 rounded border p-2 text-sm" placeholder="application/json" aria-label="Content type" />
-      <button type="submit" className="rounded border px-2 py-1 text-xs">Add</button>
+      <Input name="contentType" className="flex-1" placeholder="application/json" aria-label="Content type" />
+      <Button type="submit" variant="outline">Add</Button>
     </form>
   );
 }

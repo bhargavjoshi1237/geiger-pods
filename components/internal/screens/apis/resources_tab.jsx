@@ -2,13 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FolderTree, Plus, Trash2 } from "lucide-react";
-import { EmptyState, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
@@ -116,7 +115,7 @@ export function ResourcesTab({ api }) {
   };
 
   if (state.status === "loading") {
-    return <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard>;
+    return <SectionCard><LoadingArea label="Loading resources" className="py-10" /></SectionCard>;
   }
   if (state.status === "error") {
     return <SectionCard><EmptyState icon={FolderTree} title="Resources unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard>;
@@ -130,12 +129,13 @@ export function ResourcesTab({ api }) {
     >
       <ul className="divide-y divide-border">
         {ordered.map((resource) => <li key={resource.id}>
-          <button
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => select(resource.id)}
-            className={`block w-full truncate rounded px-2 py-2 text-left font-mono text-sm hover:bg-muted ${resource.id === selectedId ? "bg-muted font-medium" : ""}`}
+            className={`h-auto w-full justify-start px-2 py-2 text-left font-mono ${resource.id === selectedId ? "bg-muted font-medium" : "font-normal"}`}
             style={{ paddingLeft: `${0.5 + depthOf(resource.path) * 1.25}rem` }}
-          >{resource.path}</button>
+          ><span className="truncate">{resource.path}</span></Button>
         </li>)}
       </ul>
     </SectionCard>
@@ -143,10 +143,10 @@ export function ResourcesTab({ api }) {
       <SectionCard
         title={selected ? `Methods on ${selected.path}` : "Methods"}
         description={selected ? "Exact method wins; ANY covers the rest. HEAD never falls back to GET." : "Select a resource."}
-        actions={writable && selected ? <div className="flex gap-2">
+        actions={writable && selected ? <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" disabled={busy} onClick={() => setCorsOpen(true)}>Enable CORS</Button>
           <Select value={methodName} onValueChange={setMethodName}>
-            <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+            <SelectTrigger size="sm" className="w-28"><SelectValue /></SelectTrigger>
             <SelectContent>{METHOD_OPTIONS.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
           </Select>
           <Button

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Rocket } from "lucide-react";
 import { Button } from "@geiger/ui/button";
+import { Checkbox } from "@geiger/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
@@ -74,10 +75,10 @@ export function DeployDialog({ api, stages = [], open, onOpenChange, onDeployed 
           <datalist id="deploy-stages">
             {stages.map((stage) => <option key={stage.id ?? stage.name} value={stage.name} />)}
           </datalist>
-          <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            <input type="checkbox" checked={isNewStage} onChange={(event) => setIsNewStage(event.target.checked)} />
-            Create the stage if it does not exist
-          </label>
+          <div className="flex items-center gap-2">
+            <Checkbox id="deploy-create-stage" checked={isNewStage} onCheckedChange={(value) => setIsNewStage(value === true)} />
+            <Label htmlFor="deploy-create-stage" className="text-xs font-normal text-muted-foreground">Create the stage if it does not exist</Label>
+          </div>
         </div>
         {problems ? <p className="text-sm text-destructive" role="alert">{problems.message}</p> : null}
         <DialogFooter>

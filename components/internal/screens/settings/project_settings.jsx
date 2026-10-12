@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { LockKeyhole, Settings2 } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
@@ -85,7 +84,7 @@ export function SettingsScreen() {
       </div>
     </SectionCard>
     <SectionCard title="Gateway settings" description="Account-level throttling, retention and routing defaults (the AWS account-settings equivalent).">
-      {state.status === "loading" ? <div className="flex justify-center py-8"><LogoLoading /></div> : null}
+      {state.status === "loading" ? <LoadingArea label="Loading gateway settings" /> : null}
       {state.status === "ready" && !state.settings ? <EmptyState icon={Settings2} title="Settings unavailable" description={state.error ?? "Try again shortly."} /> : null}
       {state.settings ? <form onSubmit={save} className="grid gap-4 sm:grid-cols-2">
         {FIELDS.map((field) => <div key={field.key} className="space-y-2">
@@ -99,13 +98,13 @@ export function SettingsScreen() {
           />
         </div>)}
         <div className="space-y-2">
-          <Label>Throttle behavior when the limit store is down</Label>
+          <Label htmlFor="settings-throttleKvFailure">Throttle behavior when the limit store is down</Label>
           <Select
             defaultValue={state.settings.throttleKvFailure}
             onValueChange={setKvFailure}
             disabled={!writable || saving}
           >
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger id="settings-throttleKvFailure" className="w-full"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="open">Fail open (allow traffic)</SelectItem>
               <SelectItem value="closed">Fail closed (reject traffic)</SelectItem>

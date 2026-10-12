@@ -5,13 +5,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { LockKeyhole, Plus, UploadCloud } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -66,7 +65,7 @@ export function ExportsScreen() {
       description="Firehose equivalent: https sinks get signed NDJSON batches; s3 sinks get gzipped objects."
       actions={writable ? <Button onClick={() => setCreating(true)}><Plus className="size-4" />New sink</Button> : null}
     />
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <LoadingArea panel label="Loading export sinks" /> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={UploadCloud} title="Sinks unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState icon={UploadCloud} title="No sinks yet" description="Create one, then reference it from a stage's log destinations." action={writable ? <Button onClick={() => setCreating(true)}>New sink</Button> : undefined} /></SectionCard> : null}
     {state.status === "ready" && state.items.length > 0 ? <SectionCard title="Sinks" description={`${state.items.length} sink${state.items.length === 1 ? "" : "s"}.`}>

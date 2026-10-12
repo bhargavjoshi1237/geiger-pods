@@ -6,13 +6,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Cable, Copy, LockKeyhole, Plus, RotateCw } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
@@ -41,7 +40,7 @@ function TokenOnce({ token, agentCommand }) {
     <p className="text-sm font-medium">Copy this token now — it is never shown again.</p>
     <div className="flex items-center gap-2">
       <Input readOnly value={token} spellCheck={false} onFocus={(event) => event.target.select()} />
-      <Button variant="outline" size="sm" onClick={() => { void navigator.clipboard?.writeText(token); toast.success("Token copied."); }}>
+      <Button variant="outline" onClick={() => { void navigator.clipboard?.writeText(token); toast.success("Token copied."); }}>
         <Copy className="size-4" />Copy
       </Button>
     </div>
@@ -127,7 +126,7 @@ export function ConnectorsScreen() {
       description="Outbound agents reach private backends (VPC-link equivalent). No inbound firewall rules needed."
       actions={<Button onClick={() => setCreating(true)}><Plus className="size-4" />New connector</Button>}
     />
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <LoadingArea panel label="Loading connectors" /> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={Cable} title="Connectors unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState icon={Cable} title="No connectors yet" description="Create one, then run its agent inside your private network." action={<Button onClick={() => setCreating(true)}>New connector</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length > 0 ? <SectionCard title="Connectors" description={`${state.items.length} private link${state.items.length === 1 ? "" : "s"}.`}>
@@ -160,12 +159,12 @@ export function ConnectorsScreen() {
     {selected ? <SectionCard
       title={selected.name}
       description={selected.statusMessage ?? `Status ${selected.status}. Agents enforce the allow-list locally; the gateway checks it too.`}
-      actions={<Button variant="outline" size="sm" onClick={() => setSelected(null)}>Close</Button>}
+      action={<Button variant="outline" size="sm" onClick={() => setSelected(null)}>Close</Button>}
     >
       <div className="space-y-4">
         <div>
           <p className="text-sm font-medium">Allowed targets</p>
-          <p className="font-mono text-xs text-muted-foreground">{(selected.allowedTargets ?? []).join(", ") || "None — no traffic can flow."}</p>
+          <p className="break-all font-mono text-xs text-muted-foreground">{(selected.allowedTargets ?? []).join(", ") || "None — no traffic can flow."}</p>
         </div>
         <div>
           <div className="mb-2 flex items-center justify-between">

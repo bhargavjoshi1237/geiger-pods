@@ -7,14 +7,14 @@
 // that decodes a pasted token against the config with no network call.
 
 import { useCallback, useEffect, useState } from "react";
-import { Fingerprint, FlaskConical, Plus } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { Fingerprint, FlaskConical, Plus, X } from "lucide-react";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
+import { Checkbox } from "@geiger/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
@@ -107,7 +107,7 @@ function CreateForm({ protocol, onSubmit, submitting }) {
     <div className="space-y-2">
       <Label>Identity sources</Label>
       <div className="flex flex-wrap gap-2">
-        {sources.map((source) => <button key={source} type="button" className="rounded-full border px-3 py-1 font-mono text-xs" title="Remove" onClick={() => setSources(sources.filter((entry) => entry !== source))}>{source} ✕</button>)}
+        {sources.map((source) => <Button key={source} type="button" variant="outline" size="xs" className="rounded-full font-mono" title="Remove" onClick={() => setSources(sources.filter((entry) => entry !== source))}>{source}<X /></Button>)}
         {sources.length === 0 ? <p className="text-xs text-muted-foreground">None yet.</p> : null}
       </div>
       <div className="flex gap-2">
@@ -164,10 +164,10 @@ function CreateForm({ protocol, onSubmit, submitting }) {
           </SelectContent>
         </Select>
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={simple} onChange={(event) => setSimple(event.target.checked)} />
-        Simple responses (2.0 simple boolean shape)
-      </label>
+      <div className="flex items-center gap-2 sm:pt-6">
+        <Checkbox id="authz-simple" checked={simple} onCheckedChange={(checked) => setSimple(checked === true)} />
+        <Label htmlFor="authz-simple" className="font-normal">Simple responses (2.0 simple boolean shape)</Label>
+      </div>
     </div> : null}
     <div className="grid gap-4 sm:grid-cols-2">
       <div className="space-y-2">
@@ -279,7 +279,7 @@ function JwtDebugger({ authorizer }) {
     <p className="text-xs font-medium">JWT debugger (local decode only — no network call)</p>
     <div className="flex gap-2">
       <Input value={token} onChange={(event) => setToken(event.target.value)} placeholder="Paste a JWT (header.payload.signature)" spellCheck={false} className="font-mono text-xs" aria-label="JWT to decode" />
-      <Button variant="outline" size="sm" onClick={debug}>Decode</Button>
+      <Button variant="outline" onClick={debug}>Decode</Button>
     </div>
     {report?.error ? <p className="text-xs text-destructive" role="alert">{report.error}</p> : null}
     {report?.payload ? <div className="grid gap-3 lg:grid-cols-2">
@@ -343,7 +343,7 @@ export function AuthorizersTab({ api }) {
       description="JWT and custom (TOKEN/REQUEST) authorizers. Cached policies are re-evaluated per method ARN — a policy cached from GET /pets may deny POST /pets."
       actions={writable ? <Button onClick={() => setCreating(true)}><Plus className="size-4" />New authorizer</Button> : null}
     />
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <SectionCard><LoadingArea label="Loading authorizers" className="py-10" /></SectionCard> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={Fingerprint} title="Authorizers unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState icon={Fingerprint} title="No authorizers yet" description={api.protocol === "WEBSOCKET" ? "TOKEN and REQUEST authorizers guard $connect." : "JWT authorizers verify issuer-signed tokens; custom authorizers call your function."} action={writable ? <Button onClick={() => setCreating(true)}>New authorizer</Button> : undefined} /></SectionCard> : null}
     {state.status === "ready" && state.items.length > 0 ? <div className="space-y-4">

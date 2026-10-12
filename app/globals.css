@@ -4,6 +4,61 @@
 
 @source "../node_modules/@geiger/ui/src";
 
+/* Light theme: canonical geiger-notes palette. :not(.dark) so it beats tokens.css without touching dark. */
+:root:not(.dark) {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.141 0.005 285.823);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.141 0.005 285.823);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.141 0.005 285.823);
+  --primary: oklch(0.21 0.006 285.885);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.967 0.001 286.375);
+  --muted-foreground: oklch(0.552 0.016 285.938);
+  --accent: oklch(0.967 0.001 286.375);
+  --accent-foreground: oklch(0.21 0.006 285.885);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: #ffffff;
+  --destructive-text: #b91c1c;
+  --border: oklch(0.92 0.004 286.32);
+  --input: oklch(0.92 0.004 286.32);
+  --ring: oklch(0.705 0.015 286.067);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.141 0.005 285.823);
+  --sidebar-primary: oklch(0.21 0.006 285.885);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.967 0.001 286.375);
+  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+  --sidebar-border: oklch(0.92 0.004 286.32);
+  --sidebar-ring: oklch(0.705 0.015 286.067);
+  --surface-subtle: #f9fafb;
+  --surface-card: #ffffff;
+  --surface-active: #e5e7eb;
+  --surface-hover: #f3f4f6;
+  --surface-dialog: #ffffff;
+  --surface-strong: #e5e7eb;
+  --border-strong: #d4d4d4;
+  --text-secondary: #525252;
+  --text-tertiary: #737373;
+  --canvas-dots: #d1d5db;
+  --minimap-node: #d1d5db;
+  --minimap-stroke: #9ca3af;
+  --edge-stroke: #71717a;
+  --node-default: #f3f4f6;
+  --comment-bg: #dbeafe;
+  --comment-input: #bfdbfe;
+  --scrollbar-thumb: #d1d5db;
+  --scrollbar-thumb-hover: #9ca3af;
+  --topbar-bg: rgba(255, 255, 255, 0.6);
+  --topbar-border: #e5e7eb;
+  --divider: #e5e7eb;
+  --zoom-bg: rgba(229, 231, 235, 0.6);
+  --notification-dot: #3b82f6;
+}
+
 @layer base {
   html { scroll-behavior: smooth; }
   body { font-family: var(--font-geist-sans), sans-serif; }

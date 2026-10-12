@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Gauge } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@geiger/ui/table";
+import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -102,10 +104,10 @@ export function UsagePlansScreen() {
     <SectionCard title="Create plan">
       <div className="flex gap-2">
         <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="bronze" />
-        <Button size="sm" disabled={busy || !can("pods.usage_plan.write")} onClick={create}>Create</Button>
+        <Button disabled={busy || !can("pods.usage_plan.write")} onClick={create}>Create</Button>
       </div>
     </SectionCard>
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <LoadingArea panel label="Loading usage plans" /> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={Gauge} title="Plans unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState icon={Gauge} title="No usage plans yet" description="Create the first plan above, then attach stages and keys." /></SectionCard> : null}
     {state.status === "ready" && state.items.length > 0 ? <SectionCard title="Plans">
@@ -292,11 +294,11 @@ function PlanDetail({ projectId, plan, can, onClose, onChanged }) {
     URL.revokeObjectURL(url);
   };
 
-  if (detail.status === "loading") return <SectionCard><div className="flex justify-center py-6"><LogoLoading /></div></SectionCard>;
+  if (detail.status === "loading") return <LoadingArea panel label="Loading usage plan" />;
   if (detail.status === "error") return <SectionCard><EmptyState icon={Gauge} title="Plan unavailable" description={detail.error} action={<Button variant="outline" onClick={load}>Retry</Button>} /></SectionCard>;
   const data = detail.data;
   return <SectionCard title={data.name} description="Plan detail">
-    <div className="mb-3 flex gap-2">
+    <div className="mb-3 flex flex-wrap gap-2">
       {["settings", "stages", "keys", "usage"].map((name) => <Button
         key={name}
         variant={tab === name ? "default" : "outline"}
@@ -306,19 +308,19 @@ function PlanDetail({ projectId, plan, can, onClose, onChanged }) {
       <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
     </div>
     {tab === "settings" ? <div className="grid gap-2">
-      <Label>Throttle JSON ({`{rateLimit, burstLimit}`} or null; may not exceed the project level)</Label>
-      <textarea className="min-h-16 w-full rounded-md border border-input bg-background p-2 font-mono text-xs" value={throttleText} onChange={(event) => setThrottleText(event.target.value)} spellCheck={false} />
-      <Label>Quota JSON ({`{limit, offset, period: DAY|WEEK|MONTH}`} or null)</Label>
-      <textarea className="min-h-16 w-full rounded-md border border-input bg-background p-2 font-mono text-xs" value={quotaText} onChange={(event) => setQuotaText(event.target.value)} spellCheck={false} />
+      <Label htmlFor="s08-plan-throttle">Throttle JSON ({`{rateLimit, burstLimit}`} or null; may not exceed the project level)</Label>
+      <Textarea id="s08-plan-throttle" className="min-h-16 font-mono text-xs" value={throttleText} onChange={(event) => setThrottleText(event.target.value)} spellCheck={false} />
+      <Label htmlFor="s08-plan-quota">Quota JSON ({`{limit, offset, period: DAY|WEEK|MONTH}`} or null)</Label>
+      <Textarea id="s08-plan-quota" className="min-h-16 font-mono text-xs" value={quotaText} onChange={(event) => setQuotaText(event.target.value)} spellCheck={false} />
       <div><Button size="sm" disabled={busy || !can("pods.usage_plan.write")} onClick={saveSettings}>Save settings</Button></div>
     </div> : null}
     {tab === "stages" ? <div className="grid gap-2">
-      <Label>API id</Label>
-      <Input value={stageForm.apiId} onChange={(event) => setStageForm({ ...stageForm, apiId: event.target.value })} placeholder="api uuid or public id" />
-      <Label>Stage name</Label>
-      <Input value={stageForm.stage} onChange={(event) => setStageForm({ ...stageForm, stage: event.target.value })} placeholder="prod" />
-      <Label>Per-method throttles ({`{"/pets/GET": {rateLimit, burstLimit}}`}, ≤20)</Label>
-      <textarea className="min-h-16 w-full rounded-md border border-input bg-background p-2 font-mono text-xs" value={stageForm.methodThrottles} onChange={(event) => setStageForm({ ...stageForm, methodThrottles: event.target.value })} spellCheck={false} />
+      <Label htmlFor="s08-plan-stage-api">API id</Label>
+      <Input id="s08-plan-stage-api" value={stageForm.apiId} onChange={(event) => setStageForm({ ...stageForm, apiId: event.target.value })} placeholder="api uuid or public id" />
+      <Label htmlFor="s08-plan-stage-name">Stage name</Label>
+      <Input id="s08-plan-stage-name" value={stageForm.stage} onChange={(event) => setStageForm({ ...stageForm, stage: event.target.value })} placeholder="prod" />
+      <Label htmlFor="s08-plan-stage-methods">Per-method throttles ({`{"/pets/GET": {rateLimit, burstLimit}}`}, ≤20)</Label>
+      <Textarea id="s08-plan-stage-methods" className="min-h-16 font-mono text-xs" value={stageForm.methodThrottles} onChange={(event) => setStageForm({ ...stageForm, methodThrottles: event.target.value })} spellCheck={false} />
       <div><Button size="sm" disabled={!can("pods.usage_plan.write")} onClick={attachStage}>Attach stage</Button></div>
       <ul className="space-y-1 text-sm">
         {(data.stages ?? []).map((entry) => <li key={`${entry.apiId}:${entry.stage}`} className="flex flex-wrap items-center gap-2">
@@ -332,7 +334,7 @@ function PlanDetail({ projectId, plan, can, onClose, onChanged }) {
     {tab === "keys" ? <div className="grid gap-2">
       <div className="flex gap-2">
         <Input value={keyId} onChange={(event) => setKeyId(event.target.value)} placeholder="key uuid" />
-        <Button size="sm" disabled={!can("pods.usage_plan.write")} onClick={attachKey}>Attach</Button>
+        <Button disabled={!can("pods.usage_plan.write")} onClick={attachKey}>Attach</Button>
       </div>
       <ul className="space-y-1 text-sm">
         {(data.keys ?? []).map((entry) => <li key={entry.id} className="flex items-center gap-2">
@@ -344,30 +346,33 @@ function PlanDetail({ projectId, plan, can, onClose, onChanged }) {
     </div> : null}
     {tab === "usage" ? <div className="grid gap-2">
       <div className="flex flex-wrap gap-2">
-        <Input type="date" value={range.startDate} onChange={(event) => setRange({ ...range, startDate: event.target.value })} />
-        <Input type="date" value={range.endDate} onChange={(event) => setRange({ ...range, endDate: event.target.value })} />
-        <Button variant="outline" size="sm" disabled={!can("pods.usage.view")} onClick={loadUsage}>Load usage</Button>
-        <Button variant="outline" size="sm" disabled={!usage.data} onClick={exportCsv}>Export CSV</Button>
+        <Input type="date" className="sm:w-44" aria-label="Start date" value={range.startDate} onChange={(event) => setRange({ ...range, startDate: event.target.value })} />
+        <Input type="date" className="sm:w-44" aria-label="End date" value={range.endDate} onChange={(event) => setRange({ ...range, endDate: event.target.value })} />
+        <Button variant="outline" disabled={!can("pods.usage.view")} onClick={loadUsage}>Load usage</Button>
+        <Button variant="outline" disabled={!usage.data} onClick={exportCsv}>Export CSV</Button>
       </div>
       {usage.status === "ready" && Object.keys(usage.data.items ?? {}).length === 0 ? <p className="text-sm text-muted-foreground">No traffic yet.</p> : null}
       {usage.status === "ready" ? Object.entries(usage.data.items ?? {}).map(([id, series]) => <div key={id} className="text-sm">
         <code className="text-xs">{id}</code>
-        <table className="mt-1 w-full text-xs">
-          <thead><tr><th className="text-left">Day offset</th><th className="text-left">Used</th><th className="text-left">Remaining</th></tr></thead>
-          <tbody>
-            {series.map(([used, remaining], index) => <tr key={index}><td>+{index}</td><td>{used}</td><td>{remaining ?? "—"}</td></tr>)}
-          </tbody>
-        </table>
+        <Table className="mt-1 text-xs">
+          <TableHeader><TableRow className="hover:bg-transparent"><TableHead className="h-8 px-2">Day offset</TableHead><TableHead className="h-8 px-2">Used</TableHead><TableHead className="h-8 px-2">Remaining</TableHead></TableRow></TableHeader>
+          <TableBody>
+            {series.map(([used, remaining], index) => <TableRow key={index}><TableCell className="px-2 py-1.5">+{index}</TableCell><TableCell className="px-2 py-1.5 tabular-nums">{used}</TableCell><TableCell className="px-2 py-1.5 tabular-nums">{remaining ?? "—"}</TableCell></TableRow>)}
+          </TableBody>
+        </Table>
       </div>) : null}
       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
         <Input className="max-w-64" value={adjust.keyId} onChange={(event) => setAdjust({ ...adjust, keyId: event.target.value })} placeholder="key uuid" />
-        <select className="rounded-md border border-input bg-background p-1 text-sm" value={adjust.op} onChange={(event) => setAdjust({ ...adjust, op: event.target.value })}>
-          <option value="extend">extend</option>
-          <option value="reset">reset</option>
-          <option value="set">set</option>
-        </select>
+        <Select value={adjust.op} onValueChange={(value) => setAdjust({ ...adjust, op: value })}>
+          <SelectTrigger className="w-32" aria-label="Operation"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="extend">extend</SelectItem>
+            <SelectItem value="reset">reset</SelectItem>
+            <SelectItem value="set">set</SelectItem>
+          </SelectContent>
+        </Select>
         {adjust.op === "reset" ? null : <Input className="max-w-32" value={adjust.value} onChange={(event) => setAdjust({ ...adjust, value: event.target.value })} placeholder="10" />}
-        <Button size="sm" disabled={busy || !can("pods.usage_plan.write")} onClick={adjustUsage}>Apply</Button>
+        <Button disabled={busy || !can("pods.usage_plan.write")} onClick={adjustUsage}>Apply</Button>
       </div>
     </div> : null}
   </SectionCard>;

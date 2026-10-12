@@ -8,13 +8,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Copy, Eye, KeyRound, Plus, RotateCw, Upload } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
@@ -35,7 +34,7 @@ function ValueOnce({ value, title }) {
     <p className="text-sm font-medium">{title}</p>
     <div className="flex items-center gap-2">
       <Input readOnly value={value} spellCheck={false} onFocus={(event) => event.target.select()} />
-      <Button variant="outline" size="sm" onClick={() => {
+      <Button variant="outline" onClick={() => {
         navigator.clipboard?.writeText(value).then(
           () => toast.success("Key value copied."),
           () => toast.error("Copy failed."),
@@ -199,14 +198,14 @@ export function ApiKeysScreen() {
     <ScreenHeader
       title="API keys"
       description="Client identifiers for usage plans. Keys identify callers — they do not authenticate them."
-      action={<span className="flex gap-2">
+      actions={<>
         <Button variant="outline" size="sm" asChild><a href="usage-plans">Usage plans</a></Button>
         {writable ? <Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" />Create key</Button> : null}
-      </span>}
+      </>}
     />
     {fresh ? <ValueOnce value={fresh.value} title="Copy this value now — it is shown once and never stored in readable form." /> : null}
     {revealed ? <ValueOnce value={revealed.value} title={`Revealed value for ${revealed.name} (audited).`} /> : null}
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <LoadingArea panel label="Loading API keys" /> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={KeyRound} title="Keys unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState icon={KeyRound} title="No API keys yet" description="Create a key, then attach it to a usage plan to let it call an API stage." /></SectionCard> : null}
     {state.status === "ready" && state.items.length > 0 ? <SectionCard title="Keys">
@@ -227,7 +226,7 @@ export function ApiKeysScreen() {
     </SectionCard> : null}
     {detail ? <SectionCard title={detail.name} description={`Prefix …${detail.prefix}`}>
       <p className="text-xs text-muted-foreground">Plans: {(detail.plans ?? []).length === 0 ? "none" : detail.plans.map((plan) => plan.name).join(", ")}</p>
-      <div className="flex gap-2 pt-3">
+      <div className="flex flex-wrap gap-2 pt-3">
         {writable ? <Button variant="outline" size="sm" disabled={busy} onClick={() => remove(detail)}>Delete</Button> : null}
         <Button variant="ghost" size="sm" onClick={() => setDetail(null)}>Close</Button>
       </div>

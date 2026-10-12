@@ -7,12 +7,12 @@
 
 import { useEffect, useState } from "react";
 import { ListOrdered } from "lucide-react";
-import { EmptyState, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -22,6 +22,19 @@ import { MethodRequestEditor, MethodResponseEditor } from "../processing/method_
 import { PassthroughPicker, RestMappingEditor } from "../processing/parameter_mapping_editor";
 import { TemplateEditor } from "../processing/template_editor";
 import { TestTab } from "../releases/test_tab";
+
+const PASSTHROUGH = "__passthrough__";
+
+function ContentHandlingSelect({ id, value, onChange }) {
+  return <Select value={value || PASSTHROUGH} onValueChange={(next) => onChange(next === PASSTHROUGH ? null : next)}>
+    <SelectTrigger id={id} className="w-full"><SelectValue /></SelectTrigger>
+    <SelectContent>
+      <SelectItem value={PASSTHROUGH}>Passthrough (default)</SelectItem>
+      <SelectItem value="CONVERT_TO_TEXT">CONVERT_TO_TEXT</SelectItem>
+      <SelectItem value="CONVERT_TO_BINARY">CONVERT_TO_BINARY</SelectItem>
+    </SelectContent>
+  </Select>;
+}
 
 function MethodRequestSection({ api, resourceId, method, validators, models, onSaved }) {
   const { project } = useProject();
@@ -93,7 +106,7 @@ function MethodResponsesSection({ api, resourceId, method, models }) {
     return () => { alive = false; };
   }, [project.id, base]);
 
-  if (state.status === "loading") return <SectionCard><div className="flex justify-center py-6"><LogoLoading /></div></SectionCard>;
+  if (state.status === "loading") return <SectionCard><LoadingArea label="Loading method responses" className="py-6" /></SectionCard>;
   if (state.status === "error") return <SectionCard><EmptyState icon={ListOrdered} title="Method responses unavailable" description={state.error} /></SectionCard>;
 
   const pick = (statusCode) => {
@@ -135,9 +148,7 @@ function MethodResponsesSection({ api, resourceId, method, models }) {
   return <div className="space-y-3">
     <div className="flex flex-wrap items-center gap-2">
       {state.items.map((entry) => <Button key={entry.id} variant={String(entry.statusCode) === selected ? "default" : "outline"} size="sm" onClick={() => pick(String(entry.statusCode))}>{entry.statusCode}</Button>)}
-      <div className="flex items-center gap-1">
-        <Input value={selected} onChange={(event) => pick(event.target.value)} placeholder="200" className="w-20 font-mono text-xs" aria-label="Method response status" />
-      </div>
+      <Input value={selected} onChange={(event) => pick(event.target.value)} placeholder="200" className="w-20 font-mono text-xs" aria-label="Method response status" />
     </div>
     <MethodResponseEditor value={draft} models={models} onChange={setDraft} />
     {writable ? <Button size="sm" disabled={busy} onClick={save}>{busy ? "Saving…" : `Save ${draft.statusCode} response`}</Button> : null}
@@ -197,7 +208,7 @@ function IntegrationSection({ api, method, onChanged }) {
   if (!method.integrationId) {
     return <SectionCard title="Integration" description="Attach an integration on the Integrations tab first; its request/response editors appear here."><p className="text-xs text-muted-foreground">No integration attached to this method yet.</p></SectionCard>;
   }
-  if (state.status === "loading") return <SectionCard><div className="flex justify-center py-6"><LogoLoading /></div></SectionCard>;
+  if (state.status === "loading") return <SectionCard><LoadingArea label="Loading integration" className="py-6" /></SectionCard>;
   if (state.status === "error" || !state.integration) {
     return <SectionCard><EmptyState icon={ListOrdered} title="Integration unavailable" description={state.error ?? "Not found."} /></SectionCard>;
   }
@@ -326,16 +337,7 @@ function IntegrationSection({ api, method, onChanged }) {
         <PassthroughPicker value={requestDraft.passthroughBehavior} onChange={(passthroughBehavior) => setRequestDraft((current) => ({ ...current, passthroughBehavior }))} />
         <div className="space-y-2">
           <Label htmlFor={`ir-content-${method.id}`}>Content handling (request)</Label>
-          <select
-            id={`ir-content-${method.id}`}
-            className="w-full rounded border p-2 text-sm"
-            value={requestDraft.contentHandling ?? ""}
-            onChange={(event) => setRequestDraft((current) => ({ ...current, contentHandling: event.target.value || null }))}
-          >
-            <option value="">Passthrough (default)</option>
-            <option value="CONVERT_TO_TEXT">CONVERT_TO_TEXT</option>
-            <option value="CONVERT_TO_BINARY">CONVERT_TO_BINARY</option>
-          </select>
+          <ContentHandlingSelect id={`ir-content-${method.id}`} value={requestDraft.contentHandling} onChange={(contentHandling) => setRequestDraft((current) => ({ ...current, contentHandling }))} />
         </div>
         {Object.entries(requestDraft.requestTemplates ?? {}).map(([contentType, template]) => (
           <div key={contentType} className="space-y-2">
@@ -352,13 +354,12 @@ function IntegrationSection({ api, method, onChanged }) {
           </div>
         ))}
         {writable ? <div className="flex flex-wrap items-end gap-2">
-          <div className="space-y-2">
+          <div className="w-full space-y-2 sm:w-56">
             <Label htmlFor={`new-template-${method.id}`}>New template content type</Label>
-            <Input id={`new-template-${method.id}`} value={newTemplateType} onChange={(event) => setNewTemplateType(event.target.value)} placeholder="application/json" className="w-56 font-mono text-xs" />
+            <Input id={`new-template-${method.id}`} value={newTemplateType} onChange={(event) => setNewTemplateType(event.target.value)} placeholder="application/json" className="font-mono text-xs" />
           </div>
           <Button
             variant="outline"
-            size="sm"
             disabled={busy || !newTemplateType.trim()}
             onClick={() => setRequestDraft((current) => ({ ...current, requestTemplates: { ...(current.requestTemplates ?? {}), [newTemplateType.trim()]: current.requestTemplates?.[newTemplateType.trim()] ?? "" } }))}
           >Add template</Button>
@@ -378,16 +379,7 @@ function IntegrationSection({ api, method, onChanged }) {
           </div>
           <div className="space-y-2">
             <Label htmlFor={`ir-edit-content-${method.id}`}>Content handling (response)</Label>
-            <select
-              id={`ir-edit-content-${method.id}`}
-              className="w-full rounded border p-2 text-sm"
-              value={responseDraft.contentHandling ?? ""}
-              onChange={(event) => setResponseDraft((current) => ({ ...current, contentHandling: event.target.value || null }))}
-            >
-              <option value="">Passthrough (default)</option>
-              <option value="CONVERT_TO_TEXT">CONVERT_TO_TEXT</option>
-              <option value="CONVERT_TO_BINARY">CONVERT_TO_BINARY</option>
-            </select>
+            <ContentHandlingSelect id={`ir-edit-content-${method.id}`} value={responseDraft.contentHandling} onChange={(contentHandling) => setResponseDraft((current) => ({ ...current, contentHandling }))} />
           </div>
         </div>
         <RestMappingEditor
@@ -435,7 +427,7 @@ function IntegrationSection({ api, method, onChanged }) {
           <Label htmlFor={`ir-pattern-${method.id}`}>Selection pattern (regex, empty = default)</Label>
           <Input id={`ir-pattern-${method.id}`} value={pattern} onChange={(event) => setPattern(event.target.value)} placeholder="5\d\d" spellCheck={false} className="font-mono" />
         </div>
-        <Button variant="outline" size="sm" disabled={busy} onClick={addResponse}>Add response</Button>
+        <Button variant="outline" disabled={busy} onClick={addResponse}>Add response</Button>
       </div> : null}
     </SectionCard>
   </div>;
@@ -468,7 +460,7 @@ export function MethodDetail({ api, resourceId, method, onChanged }) {
 
   return <div className="space-y-8">
     <MethodAuthPicker api={api} resourceId={resourceId} method={method} onSaved={onChanged} />
-    {lookups.status === "loading" ? <SectionCard><div className="flex justify-center py-6"><LogoLoading /></div></SectionCard> : <>
+    {lookups.status === "loading" ? <SectionCard><LoadingArea label="Loading validators and models" className="py-6" /></SectionCard> : <>
       <MethodRequestSection api={api} resourceId={resourceId} method={method} validators={lookups.validators} models={lookups.models} onSaved={onChanged} />
       <MethodResponsesSection api={api} resourceId={resourceId} method={method} models={lookups.models} />
     </>}

@@ -6,10 +6,9 @@
 
 import { useEffect, useState } from "react";
 import { Plus, Tags, Trash2 } from "lucide-react";
-import { EmptyState, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 
@@ -41,7 +40,7 @@ export function TagsEditor({ resourceType, resourceId }) {
     setState({ status: "ready", tags: data ?? {}, error: null });
   };
 
-  if (state.status === "loading") return <SectionCard><div className="flex justify-center py-6"><LogoLoading /></div></SectionCard>;
+  if (state.status === "loading") return <LoadingArea panel label="Loading tags" />;
   if (state.status === "error") return <SectionCard><EmptyState icon={Tags} title="Tags unavailable" description={state.error} /></SectionCard>;
 
   const entries = Object.entries(state.tags);
@@ -51,7 +50,8 @@ export function TagsEditor({ resourceType, resourceId }) {
         <span className="min-w-0 flex-1 truncate font-mono text-xs">{key} = {value}</span>
         <Button
           variant="outline"
-          size="sm"
+          size="icon-sm"
+          aria-label={`Remove tag ${key}`}
           onClick={() => {
             const next = { ...state.tags };
             delete next[key];
@@ -68,9 +68,9 @@ export function TagsEditor({ resourceType, resourceId }) {
         (error) => toast.error(error.message),
       );
     }}>
-      <Input className="w-40" placeholder="Key" value={draft.key} onChange={(event) => setDraft({ ...draft, key: event.target.value })} />
-      <Input className="w-40" placeholder="Value" value={draft.value} onChange={(event) => setDraft({ ...draft, value: event.target.value })} />
-      <Button type="submit" variant="outline" size="sm"><Plus className="size-4" />Add</Button>
+      <Input className="w-40" placeholder="Key" aria-label="Tag key" value={draft.key} onChange={(event) => setDraft({ ...draft, key: event.target.value })} />
+      <Input className="w-40" placeholder="Value" aria-label="Tag value" value={draft.value} onChange={(event) => setDraft({ ...draft, value: event.target.value })} />
+      <Button type="submit" variant="outline"><Plus className="size-4" />Add</Button>
     </form>
   </SectionCard>;
 }

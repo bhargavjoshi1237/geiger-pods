@@ -5,13 +5,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { LockKeyhole, Plus, ShieldCheck } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
@@ -57,23 +56,23 @@ export function TruststoresScreen() {
   }, [projectId]);
 
   if (!can("pods.domains.view")) return <EmptyState icon={LockKeyhole} title="Access unavailable" description="Your current team access does not allow this screen." />;
-  if (state.status === "loading") return <LogoLoading />;
+  if (state.status === "loading") return <LoadingArea label="Loading trust stores" />;
   if (state.status === "error") return <EmptyState title="Could not load trust stores" description={state.error} />;
 
   return <div className="space-y-4">
     <ScreenHeader
       title="Trust stores"
       description="Client-CA bundles for mutual TLS, with expiry warnings and version history."
-      action={<Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" />Upload bundle</Button>}
+      actions={<Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" />Upload bundle</Button>}
     />
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       <Button variant="outline" size="sm" asChild><a href="../">Custom domains</a></Button>
       <Button variant="outline" size="sm" asChild><a href="../../waf">Web application firewall</a></Button>
     </div>
     {state.items.length === 0 ? <EmptyState icon={ShieldCheck} title="No trust stores" description="Upload a PEM bundle to enable mTLS on a domain." /> : <SectionCard title="Trust stores">
       <ul className="space-y-2">
         {state.items.map((entry) => <li key={entry.id} className="rounded-md border p-3 text-sm">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium">{entry.name}</span>
             <Badge variant="outline">v{entry.version}</Badge>
             <span className="text-xs text-muted-foreground">{entry.certCount} certs</span>
@@ -87,10 +86,10 @@ export function TruststoresScreen() {
     <Dialog open={creating} onOpenChange={setCreating}>
       <DialogContent>
         <DialogHeader><DialogTitle>Upload PEM bundle</DialogTitle><DialogDescription>Up to 1000 certificates, 1 MB. Public data.</DialogDescription></DialogHeader>
-        <Label>Name</Label>
-        <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="client-ca" />
-        <Label>PEM bundle</Label>
-        <Textarea value={bundle} onChange={(event) => setBundle(event.target.value)} rows={8} spellCheck={false} placeholder="-----BEGIN CERTIFICATE-----" />
+        <Label htmlFor="truststore-name">Name</Label>
+        <Input id="truststore-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="client-ca" />
+        <Label htmlFor="truststore-bundle">PEM bundle</Label>
+        <Textarea id="truststore-bundle" value={bundle} onChange={(event) => setBundle(event.target.value)} rows={8} spellCheck={false} placeholder="-----BEGIN CERTIFICATE-----" />
         <DialogFooter>
           <Button variant="outline" onClick={() => setCreating(false)}>Cancel</Button>
           <Button onClick={async () => {

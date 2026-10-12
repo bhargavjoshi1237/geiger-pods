@@ -5,6 +5,7 @@ import { ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 
 /**
  * HTTP parameter-mapping editor (AWS grammar): request table plus one
@@ -92,7 +93,7 @@ export function MappingTable({ rows = {}, onChange, keyPlaceholder, suggestions 
           <Button type="button" variant="outline" onClick={() => { const next = { ...rows }; delete next[key]; onChange?.(next); }}>Remove</Button>
         </div>
       ))}
-      <div className="flex items-center gap-2">
+      <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
         <Input value={newKey} onChange={(event) => setNewKey(event.target.value)} placeholder={keyPlaceholder ?? "mapping key"} aria-label="New mapping key" />
         <Input value={newValue} onChange={(event) => setNewValue(event.target.value)} placeholder="$request.header.id or 'static'" aria-label="New mapping value" list={listId} />
         <Button type="button" onClick={commit}>Add</Button>
@@ -109,11 +110,14 @@ export function PassthroughPicker({ value, onChange }) {
   return (
     <div>
       <Label htmlFor="passthrough">Passthrough behavior</Label>
-      <select id="passthrough" className="w-full rounded border p-2 text-sm" value={value ?? "WHEN_NO_MATCH"} onChange={(event) => onChange?.(event.target.value)}>
-        <option value="WHEN_NO_MATCH">WHEN_NO_MATCH — pass through unmatched types</option>
-        <option value="WHEN_NO_TEMPLATES">WHEN_NO_TEMPLATES — pass through only when no templates exist</option>
-        <option value="NEVER">NEVER — reject unmatched types with 415</option>
-      </select>
+      <Select value={value ?? "WHEN_NO_MATCH"} onValueChange={(next) => onChange?.(next)}>
+        <SelectTrigger id="passthrough" className="w-full"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="WHEN_NO_MATCH">WHEN_NO_MATCH — pass through unmatched types</SelectItem>
+          <SelectItem value="WHEN_NO_TEMPLATES">WHEN_NO_TEMPLATES — pass through only when no templates exist</SelectItem>
+          <SelectItem value="NEVER">NEVER — reject unmatched types with 415</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
   );
 }

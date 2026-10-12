@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { History, Layers } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
+import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -61,7 +61,7 @@ export function StagesTab({ api }) {
   }, [project.id, api.id, api.publicId]);
 
   if (state.status === "loading") {
-    return <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard>;
+    return <SectionCard><LoadingArea label="Loading stages" /></SectionCard>;
   }
   if (state.status === "error") {
     return <SectionCard><EmptyState icon={Layers} title="Stages unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard>;
@@ -79,7 +79,7 @@ export function StagesTab({ api }) {
         {stage.deploymentId ? <Badge variant="outline">{String(stage.deploymentId).slice(0, 8)}</Badge> : <Badge variant="outline">unpointed</Badge>}
         {stage.autoDeploy ? <Badge>auto-deploy</Badge> : null}
         {stage.canary ? <Badge variant="secondary">canary</Badge> : null}
-        {stage.invokeUrl ? <code className="truncate">{stage.invokeUrl}</code> : null}
+        {stage.invokeUrl ? <code className="min-w-0 truncate">{stage.invokeUrl}</code> : null}
         {stage.invokeUrl ? <Button
           variant="outline"
           size="sm"
@@ -174,9 +174,9 @@ function StageDetail({ api, stage, onClose, onChanged, can, projectId }) {
     </div>
     {subTab === "settings" ? <div className="space-y-2">
       <Label htmlFor={`vars-${stage.id}`}>Stage variables (JSON)</Label>
-      <textarea
+      <Textarea
         id={`vars-${stage.id}`}
-        className="min-h-24 w-full rounded-md border border-input bg-background p-2 font-mono text-xs"
+        className="min-h-24 font-mono text-xs"
         value={variablesText}
         onChange={(event) => setVariablesText(event.target.value)}
         spellCheck={false}

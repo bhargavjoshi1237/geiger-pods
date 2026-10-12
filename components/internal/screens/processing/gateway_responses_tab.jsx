@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import { MessageSquareWarning } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { Textarea } from "@geiger/ui/textarea";
 
 /**
@@ -20,7 +19,7 @@ export function GatewayResponsesTab({ types = [], customizations = [], loading =
   const [selected, setSelected] = useState(types[0]?.type ?? "THROTTLED");
   const current = customizations.find((entry) => entry.responseType === selected) ?? null;
 
-  if (loading) return <LogoLoading label="Loading gateway responses…" />;
+  if (loading) return <LoadingArea label="Loading gateway responses" />;
   if (error) return <EmptyState title="Could not load gateway responses" description={String(error?.message ?? error)} />;
   if (types.length === 0) return <EmptyState icon={MessageSquareWarning} title="No gateway responses" description="The gateway response catalog is unavailable." />;
 
@@ -29,15 +28,18 @@ export function GatewayResponsesTab({ types = [], customizations = [], loading =
       <ScreenHeader title="Gateway responses" description="Customize status codes, headers and body templates for gateway-generated errors. Unspecified types fall back to DEFAULT_4XX/DEFAULT_5XX." />
       <div className="flex flex-wrap gap-2">
         {types.map((entry) => (
-          <button
+          <Button
             key={entry.type}
             type="button"
+            variant="outline"
+            size="sm"
+            aria-pressed={selected === entry.type}
             onClick={() => setSelected(entry.type)}
-            className={`flex items-center gap-2 rounded border px-3 py-1 text-xs ${selected === entry.type ? "border-primary font-semibold" : ""}`}
+            className={`text-xs ${selected === entry.type ? "border-primary font-semibold" : "font-normal"}`}
           >
             {entry.type}
             {entry.customized ? <Badge>customized</Badge> : <span className="text-muted-foreground">{entry.defaultStatus}</span>}
-          </button>
+          </Button>
         ))}
       </div>
       <GatewayResponseEditor
@@ -94,7 +96,7 @@ export function GatewayResponseEditor({ type, customization, onSave, onReset, ca
           <Textarea id="gw-template" className="font-mono text-xs" rows={6} value={templateBody} onChange={(event) => setTemplateBody(event.target.value)} placeholder='{"message": $context.error.messageString}' disabled={!canWrite} spellCheck={false} />
         </div>
         {canWrite ? (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button type="button" onClick={save}>Save customization</Button>
             <Button type="button" variant="outline" onClick={onReset}>Reset to default</Button>
           </div>

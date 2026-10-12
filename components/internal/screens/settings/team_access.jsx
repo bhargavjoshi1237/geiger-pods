@@ -2,12 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { LockKeyhole, ShieldCheck, UserPlus } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -75,7 +74,7 @@ export function TeamAccessScreen() {
       description="Grant product roles to teammates. You can never grant a role holding a permission you lack yourself."
       actions={<Button onClick={() => setGranting(true)}><UserPlus className="size-4" />Grant role</Button>}
     />
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-8"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <LoadingArea panel label="Loading role grants" /> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={ShieldCheck} title="Grants unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState icon={ShieldCheck} title="No product grants yet" description="Everyone here inherits access from the Geiger team. Grant a product role to narrow or extend it." action={<Button onClick={() => setGranting(true)}>Grant role</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length > 0 ? <SectionCard title="Product grants" description={`${state.items.length} active grant${state.items.length === 1 ? "" : "s"}.`}>

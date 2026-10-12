@@ -36,7 +36,7 @@ export function ProfileDropdown({ user }) {
       <Button variant="ghost" size="icon-sm" aria-label="Account menu" className="ml-1 overflow-hidden rounded-full border border-border p-0 transition-colors hover:border-border-strong">
         <Avatar className="size-full">
           {picture && <AvatarImage src={picture} alt={name} />}
-          <AvatarFallback className="border-0 bg-surface-card text-[10px] font-semibold text-muted-foreground">{initials}</AvatarFallback>
+          <AvatarFallback className="border-0 bg-surface-card text-xs font-semibold text-muted-foreground">{initials}</AvatarFallback>
         </Avatar>
       </Button>
     </DropdownMenuTrigger>
@@ -66,7 +66,7 @@ export function ProfileDropdown({ user }) {
           <a href={dashHref(path)}><Icon className="size-4" /><span>{label}</span></a>
         </DropdownMenuItem>)}
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled={signingOut} onSelect={signOut} className="gap-2.5 rounded-md px-2.5 py-2 text-muted-foreground focus:bg-red-500/10 focus:text-red-400">
+        <DropdownMenuItem disabled={signingOut} onSelect={signOut} className="gap-2.5 rounded-md px-2.5 py-2 text-muted-foreground focus:bg-red-500/10 focus:text-red-600 dark:focus:text-red-400">
           <LogOut className="size-4" /><span>{signingOut ? "Signing out…" : "Sign out"}</span>
         </DropdownMenuItem>
       </DropdownMenuGroup>

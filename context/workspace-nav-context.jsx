@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useMemo, useState } from "react
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { resolveSection } from "@/lib/workspace/model.mjs";
+import { resolveScreen } from "@/lib/workspace/screens.mjs";
 
 // Where the workspace is and how it moves: the URL under /project, or local state in the landing playground.
 const WorkspaceNavContext = createContext(null);
@@ -22,14 +23,26 @@ export function RouteWorkspaceNav({ children }) {
   return <WorkspaceNavContext.Provider value={value}>{children}</WorkspaceNavContext.Provider>;
 }
 
+// Workspace path segments for an in-memory location ("apis/k1/routes" -> ["apis", "k1", "routes"]).
+function pathSegments(path) {
+  return String(path ?? "").split("/").filter(Boolean).map((part) => decodeURIComponent(part));
+}
+
+// The landing playground's navigation: any workspace path (`apis/:apiId/:tab`,
+// `monitoring/alarms`…) kept in state instead of the URL. `rest` matches the
+// `[[...rest]]` segments the /project route resolves with resolveScreen().
 export function MemoryWorkspaceNav({ projectId, initialSection = "overview", children }) {
-  const [section, setSection] = useState(initialSection);
-  const navigate = useCallback((slug) => setSection(slug), []);
+  const [rest, setRest] = useState(() => (initialSection === "overview" ? [] : pathSegments(initialSection)));
+  const navigate = useCallback((slug) => {
+    const next = pathSegments(slug);
+    setRest(next.length === 1 && next[0] === "overview" ? [] : next);
+  }, []);
+  const section = resolveScreen(rest)?.section ?? null;
   const value = useMemo(() => ({
-    memory: true, projectId, section,
+    memory: true, projectId, section, rest,
     hrefFor: (slug) => sectionHref(projectId, slug),
     navigate,
-  }), [projectId, section, navigate]);
+  }), [projectId, section, rest, navigate]);
   return <WorkspaceNavContext.Provider value={value}>{children}</WorkspaceNavContext.Provider>;
 }
 

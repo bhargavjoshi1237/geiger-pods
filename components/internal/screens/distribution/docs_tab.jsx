@@ -6,9 +6,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { BookOpen } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
-import { LogoLoading } from "@geiger/ui/logo-loading";
+import { Input } from "@geiger/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
+import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -142,7 +144,7 @@ export function DocsTab({ api, stages }) {
     }
   };
 
-  if (state.status === "loading") return <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard>;
+  if (state.status === "loading") return <SectionCard><LoadingArea label="Loading documentation" /></SectionCard>;
   if (state.status === "error") {
     return <SectionCard><EmptyState icon={BookOpen} title="Documentation unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard>;
   }
@@ -158,11 +160,11 @@ export function DocsTab({ api, stages }) {
             <ul className="mt-2 space-y-1">
               {state.parts.map((part) => (
                 <li key={part.id} className="flex items-center justify-between gap-2 rounded border border-border p-2 text-sm">
-                  <span className="font-mono text-xs">
+                  <span className="min-w-0 break-all font-mono text-xs">
                     {locationLabel(part.location)}
                     {(part.location.method === "*" || part.location.statusCode === "*") ? <span className="ml-2 rounded bg-muted px-1">inherits</span> : null}
                   </span>
-                  {canWrite ? <Button variant="outline" disabled={busy} onClick={() => remove(part)}>Delete</Button> : null}
+                  {canWrite ? <Button variant="outline" size="sm" className="shrink-0" disabled={busy} onClick={() => remove(part)}>Delete</Button> : null}
                 </li>
               ))}
             </ul>
@@ -171,15 +173,16 @@ export function DocsTab({ api, stages }) {
       {canWrite ? (
         <SectionCard>
           <h3 className="text-sm font-medium">New part</h3>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })} className="rounded-md border border-border bg-background px-2 py-1 text-sm" aria-label="Location type">
-              {LOCATION_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-            </select>
-            <input value={form.path} onChange={(event) => setForm({ ...form, path: event.target.value })} placeholder="/pets" className="rounded-md border border-border bg-background px-2 py-1 text-sm" aria-label="Path" />
-            <input value={form.method} onChange={(event) => setForm({ ...form, method: event.target.value })} placeholder="* or GET" className="w-24 rounded-md border border-border bg-background px-2 py-1 text-sm" aria-label="Method" />
-            <input value={form.statusCode} onChange={(event) => setForm({ ...form, statusCode: event.target.value })} placeholder="* or 200" className="w-24 rounded-md border border-border bg-background px-2 py-1 text-sm" aria-label="Status code" />
+          <div className="mt-2 grid grid-cols-2 items-center gap-2 sm:grid-cols-[12rem_minmax(0,1fr)_6rem_6rem]">
+            <Select value={form.type} onValueChange={(value) => setForm({ ...form, type: value })}>
+              <SelectTrigger className="col-span-2 sm:col-span-1" aria-label="Location type"><SelectValue /></SelectTrigger>
+              <SelectContent>{LOCATION_TYPES.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
+            </Select>
+            <Input value={form.path} onChange={(event) => setForm({ ...form, path: event.target.value })} placeholder="/pets" className="col-span-2 font-mono sm:col-span-1" aria-label="Path" />
+            <Input value={form.method} onChange={(event) => setForm({ ...form, method: event.target.value })} placeholder="* or GET" className="font-mono" aria-label="Method" />
+            <Input value={form.statusCode} onChange={(event) => setForm({ ...form, statusCode: event.target.value })} placeholder="* or 200" className="font-mono" aria-label="Status code" />
           </div>
-          <textarea value={form.properties} onChange={(event) => setForm({ ...form, properties: event.target.value })} rows={4} className="mt-2 w-full rounded-md border border-border bg-background p-2 font-mono text-xs" aria-label="Properties JSON" />
+          <Textarea value={form.properties} onChange={(event) => setForm({ ...form, properties: event.target.value })} rows={4} className="mt-2 font-mono text-xs" aria-label="Properties JSON" spellCheck={false} />
           <Button className="mt-2" disabled={busy} onClick={create}>Save part</Button>
         </SectionCard>
       ) : null}
@@ -194,12 +197,15 @@ export function DocsTab({ api, stages }) {
           )}
         {canWrite ? (
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <input value={versionName} onChange={(event) => setVersionName(event.target.value)} placeholder="v1" className="rounded-md border border-border bg-background px-2 py-1 text-sm" aria-label="Version name" />
+            <Input value={versionName} onChange={(event) => setVersionName(event.target.value)} placeholder="v1" className="w-full sm:w-40" aria-label="Version name" />
             <Button variant="outline" disabled={busy} onClick={createVersion}>Freeze version</Button>
-            <select value={stageName} onChange={(event) => setStageName(event.target.value)} className="rounded-md border border-border bg-background px-2 py-1 text-sm" aria-label="Stage">
-              <option value="">Pick a stage…</option>
-              {(stages ?? []).map((entry) => <option key={entry.name} value={entry.name}>{entry.name}</option>)}
-            </select>
+            <Select value={stageName || "__none__"} onValueChange={(value) => setStageName(value === "__none__" ? "" : value)}>
+              <SelectTrigger className="w-full sm:w-48" aria-label="Stage"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Pick a stage…</SelectItem>
+                {(stages ?? []).map((entry) => <SelectItem key={entry.name} value={entry.name}>{entry.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Button variant="outline" disabled={busy} onClick={associate}>Pin version to stage</Button>
           </div>
         ) : null}

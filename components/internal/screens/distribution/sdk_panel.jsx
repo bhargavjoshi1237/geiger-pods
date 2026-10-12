@@ -2,10 +2,11 @@
 
 // SDKs panel (S13 part C): language picker, config form, generate + download.
 import { useState } from "react";
-import { Package } from "lucide-react";
+import { Loader2, Package } from "lucide-react";
 import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
-import { LogoLoading } from "@geiger/ui/logo-loading";
+import { Input } from "@geiger/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -66,16 +67,18 @@ export function SdkPanel({ api, stages }) {
         {(stages ?? []).length === 0
           ? <EmptyState icon={Package} title="No stages yet" description="Deploy a stage first, then generate an SDK from it." />
           : (
-            <div className="flex flex-wrap items-center gap-2">
-              <select value={stageName} onChange={(event) => setStageName(event.target.value)} className="rounded-md border border-border bg-background px-2 py-1 text-sm" aria-label="Stage">
-                {(stages ?? []).map((entry) => <option key={entry.name} value={entry.name}>{entry.name}</option>)}
-              </select>
-              <select value={language} onChange={(event) => setLanguage(event.target.value)} className="rounded-md border border-border bg-background px-2 py-1 text-sm" aria-label="Language">
-                {LANGUAGES.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
-              </select>
-              <input value={packageName} onChange={(event) => setPackageName(event.target.value)} placeholder="package name" className="rounded-md border border-border bg-background px-2 py-1 text-sm" aria-label="Package name" />
-              <input value={version} onChange={(event) => setVersion(event.target.value)} placeholder="0.1.0" className="w-24 rounded-md border border-border bg-background px-2 py-1 text-sm" aria-label="Version" />
-              <Button disabled={busy} onClick={generate}>{busy ? <LogoLoading /> : "Generate & download"}</Button>
+            <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
+              <Select value={stageName} onValueChange={setStageName}>
+                <SelectTrigger className="sm:w-40" aria-label="Stage"><SelectValue /></SelectTrigger>
+                <SelectContent>{(stages ?? []).map((entry) => <SelectItem key={entry.name} value={entry.name}>{entry.name}</SelectItem>)}</SelectContent>
+              </Select>
+              <Select value={language} onValueChange={setLanguage}>
+                <SelectTrigger className="sm:w-40" aria-label="Language"><SelectValue /></SelectTrigger>
+                <SelectContent>{LANGUAGES.map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}</SelectContent>
+              </Select>
+              <Input value={packageName} onChange={(event) => setPackageName(event.target.value)} placeholder="package name" className="sm:w-48" aria-label="Package name" spellCheck={false} />
+              <Input value={version} onChange={(event) => setVersion(event.target.value)} placeholder="0.1.0" className="sm:w-24" aria-label="Version" spellCheck={false} />
+              <Button className="col-span-2 sm:col-span-1" disabled={busy} onClick={generate}>{busy ? <Loader2 className="size-4 animate-spin" aria-label="Generating" /> : "Generate & download"}</Button>
             </div>
           )}
       </SectionCard>

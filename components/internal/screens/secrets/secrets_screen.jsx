@@ -2,13 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { KeyRound, LockKeyhole, Plus, RotateCw } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
@@ -108,9 +107,9 @@ function SecretForm({ initial, onSubmit, submitting, submitLabel }) {
       <Input id="secret-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="upstream-api-key" required />
     </div>
     <div className="space-y-2">
-      <Label>Kind</Label>
+      <Label htmlFor="secret-kind">Kind</Label>
       <Select value={kind} onValueChange={(next) => { setKind(next); setFields({}); }}>
-        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectTrigger id="secret-kind" className="w-full"><SelectValue /></SelectTrigger>
         <SelectContent>{SECRET_KINDS.map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}</SelectContent>
       </Select>
     </div>
@@ -196,7 +195,7 @@ export function SecretsScreen() {
       description="Backend credentials, encrypted at rest. Values are write-only and referenced by integrations, never pasted into config."
       actions={<Button onClick={() => setCreating(true)}><Plus className="size-4" />New secret</Button>}
     />
-    {status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {status === "loading" ? <LoadingArea panel label="Loading secrets" /> : null}
     {status === "error" ? <SectionCard><EmptyState icon={KeyRound} title="Secrets unavailable" description={error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {status === "ready" && items.length === 0 ? <SectionCard><EmptyState icon={KeyRound} title="No secrets yet" description="Store your first upstream credential. It is encrypted before it touches the database." action={<Button onClick={() => setCreating(true)}>New secret</Button>} /></SectionCard> : null}
     {status === "ready" && items.length > 0 ? <SectionCard title="Secrets" description={`${items.length} stored credential${items.length === 1 ? "" : "s"}.`}>

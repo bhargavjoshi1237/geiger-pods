@@ -6,13 +6,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Copy, KeyRound, LockKeyhole } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
+import { Checkbox } from "@geiger/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -76,7 +77,7 @@ export function TokensScreen() {
       description="Personal tokens inherit your current permissions; service tokens carry fixed scopes. Values show once."
       actions={<Button onClick={() => { setFresh(null); setCreating(true); }}><KeyRound className="size-4" />New token</Button>}
     />
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <LoadingArea panel label="Loading access tokens" /> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={KeyRound} title="Tokens unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState icon={KeyRound} title="No tokens yet" description="Create one for the CLI: pods login --token …" /></SectionCard> : null}
     {state.status === "ready" && state.items.length > 0 ? <SectionCard title="Tokens" description={`${state.items.length} token${state.items.length === 1 ? "" : "s"}.`}>
@@ -132,10 +133,13 @@ export function TokensScreen() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="token-kind">Kind</Label>
-              <select id="token-kind" name="kind" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                <option value="personal">personal</option>
-                <option value="service">service</option>
-              </select>
+              <Select name="kind" defaultValue="personal">
+                <SelectTrigger id="token-kind" className="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="personal">personal</SelectItem>
+                  <SelectItem value="service">service</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="token-expiry">Expires at</Label>
@@ -147,9 +151,10 @@ export function TokensScreen() {
             {SCOPE_GROUPS.map((entry) => <details key={entry.group} className="rounded-md border border-border p-2">
               <summary className="cursor-pointer text-sm">{entry.group}</summary>
               <div className="mt-2 space-y-1">
-                {entry.scopes.map((scope) => <label key={scope} className="flex items-center gap-2 font-mono text-xs">
-                  <input type="checkbox" name="scopes" value={scope} />{scope}
-                </label>)}
+                {entry.scopes.map((scope) => <div key={scope} className="relative flex items-center gap-2">
+                  <Checkbox id={`token-scope-${scope}`} name="scopes" value={scope} />
+                  <Label htmlFor={`token-scope-${scope}`} className="font-mono text-xs font-normal">{scope}</Label>
+                </div>)}
               </div>
             </details>)}
           </fieldset>
@@ -160,7 +165,7 @@ export function TokensScreen() {
     {fresh?.token ? <SectionCard title="Copy this token now" description="It is never shown again.">
       <div className="flex items-center gap-2">
         <Input readOnly value={fresh.token} spellCheck={false} onFocus={(event) => event.target.select()} />
-        <Button variant="outline" size="sm" onClick={() => { void navigator.clipboard?.writeText(fresh.token); toast.success("Token copied."); }}>
+        <Button variant="outline" onClick={() => { void navigator.clipboard?.writeText(fresh.token); toast.success("Token copied."); }}>
           <Copy className="size-4" />Copy
         </Button>
       </div>

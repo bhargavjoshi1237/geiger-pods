@@ -7,13 +7,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CalendarRange, KeyRound, Plus } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@geiger/ui/table";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -124,12 +124,12 @@ export function UsagePlansScreen() {
     <ScreenHeader
       title="Usage plans"
       description="Throttle and quota envelopes for API stages and the keys that may call them."
-      action={<span className="flex gap-2">
+      actions={<>
         <Button variant="outline" size="sm" asChild><a href="api-keys">API keys</a></Button>
         {writable ? <Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" />Create plan</Button> : null}
-      </span>}
+      </>}
     />
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <LoadingArea panel label="Loading usage plans" /> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={KeyRound} title="Plans unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState icon={KeyRound} title="No usage plans yet" description="Plans bind API stages to throttles, quotas and API keys." /></SectionCard> : null}
     {state.status === "ready" && state.items.length > 0 ? <SectionCard title="Plans">
@@ -347,7 +347,7 @@ function PlanKeys({ plan, projectId, writable, busy, setBusy, onChanged }) {
     </ul>}
     {writable ? <div className="flex flex-wrap items-end gap-2">
       <div><Label>Key id or public id</Label><Input className="font-mono text-xs" value={keyId} onChange={(event) => setKeyId(event.target.value)} placeholder="Paste a key id" /></div>
-      <Button variant="outline" size="sm" disabled={busy || !keyId} onClick={() => mutate("POST", { keyId })}>Add key</Button>
+      <Button variant="outline" disabled={busy || !keyId} onClick={() => mutate("POST", { keyId })}>Add key</Button>
     </div> : null}
   </div>;
 }
@@ -415,27 +415,27 @@ function PlanUsage({ plan, projectId, writable, busy, setBusy }) {
     <div className="flex flex-wrap items-end gap-2">
       <div><Label>Start</Label><Input type="date" value={range.start} onChange={(event) => setRange({ ...range, start: event.target.value })} /></div>
       <div><Label>End</Label><Input type="date" value={range.end} onChange={(event) => setRange({ ...range, end: event.target.value })} /></div>
-      <Button variant="outline" size="sm" disabled={busy} onClick={load}><CalendarRange className="size-4" />Load usage</Button>
-      {usage ? <Button variant="outline" size="sm" onClick={exportCsv}>Export CSV</Button> : null}
+      <Button variant="outline" disabled={busy} onClick={load}><CalendarRange className="size-4" />Load usage</Button>
+      {usage ? <Button variant="outline" onClick={exportCsv}>Export CSV</Button> : null}
     </div>
     {!usage ? <p className="text-xs text-muted-foreground">Today&apos;s numbers are live counters; past days come from rolled-up history.</p> : null}
     {usage ? Object.entries(usage.items ?? {}).map(([keyId, pairs]) => <div key={keyId} className="rounded-md border border-border p-3 text-xs">
       <p className="font-medium">{keyId}</p>
-      <table className="mt-2 w-full">
-        <thead><tr className="text-left text-muted-foreground"><th>Date</th><th>Used</th><th>Remaining</th></tr></thead>
-        <tbody>
-          {pairs.map(([used, remaining], index) => <tr key={daysBetween(usage.startDate, usage.endDate)[index] ?? index}>
-            <td>{daysBetween(usage.startDate, usage.endDate)[index]}</td><td>{used}</td><td>{remaining}</td>
-          </tr>)}
-        </tbody>
-      </table>
+      <Table className="mt-2 text-xs">
+        <TableHeader><TableRow className="hover:bg-transparent"><TableHead className="h-8 px-2">Date</TableHead><TableHead className="h-8 px-2">Used</TableHead><TableHead className="h-8 px-2">Remaining</TableHead></TableRow></TableHeader>
+        <TableBody>
+          {pairs.map(([used, remaining], index) => <TableRow key={daysBetween(usage.startDate, usage.endDate)[index] ?? index}>
+            <TableCell className="px-2 py-1.5">{daysBetween(usage.startDate, usage.endDate)[index]}</TableCell><TableCell className="px-2 py-1.5 tabular-nums">{used}</TableCell><TableCell className="px-2 py-1.5 tabular-nums">{remaining}</TableCell>
+          </TableRow>)}
+        </TableBody>
+      </Table>
     </div>) : null}
     {Object.keys(usage?.items ?? {}).length === 0 && usage ? <p className="text-xs text-muted-foreground">No traffic yet.</p> : null}
     {writable ? <div className="flex flex-wrap items-end gap-2 border-t border-border pt-3">
       <div><Label>Key public id</Label><Input className="font-mono text-xs" value={adjust.keyId} onChange={(event) => setAdjust({ ...adjust, keyId: event.target.value })} /></div>
       <div><Label>Operation</Label><Input className="font-mono text-xs" value={adjust.op} onChange={(event) => setAdjust({ ...adjust, op: event.target.value })} placeholder="extend|reset|set" /></div>
       <div><Label>Value</Label><Input className="font-mono text-xs" inputMode="numeric" value={adjust.value} onChange={(event) => setAdjust({ ...adjust, value: event.target.value })} /></div>
-      <Button variant="outline" size="sm" disabled={adjusting} onClick={adjustUsage}>Apply</Button>
+      <Button variant="outline" disabled={adjusting} onClick={adjustUsage}>Apply</Button>
     </div> : null}
   </div>;
 }

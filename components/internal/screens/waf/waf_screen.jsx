@@ -7,13 +7,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { LockKeyhole, Plus, Shield } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
@@ -28,6 +28,9 @@ async function api(projectId, path, options = {}) {
   if (!response.ok) throw new Error(data?.error?.message ?? `Request failed (${response.status}).`);
   return data;
 }
+
+// Radix SelectItem values may not be empty strings; "" means "no filter".
+const ALL = "__all__";
 
 const MANAGED_GROUPS = ["PodsCommonRuleSet", "PodsSQLiRuleSet", "PodsKnownBadInputsRuleSet", "PodsAdminProtectionRuleSet"];
 
@@ -53,8 +56,8 @@ function RulesEditor({ projectId, acl, onChanged }) {
         }
       }}>+ {group}</Button>)}
     </div>
-    <Label>Rules JSON (priority order, ALLOW/BLOCK/COUNT)</Label>
-    <Textarea value={rulesText} onChange={(event) => setRulesText(event.target.value)} rows={12} spellCheck={false} className="font-mono text-xs" />
+    <Label htmlFor="waf-rules-json">Rules JSON (priority order, ALLOW/BLOCK/COUNT)</Label>
+    <Textarea id="waf-rules-json" value={rulesText} onChange={(event) => setRulesText(event.target.value)} rows={12} spellCheck={false} className="font-mono text-xs" />
     <Button size="sm" onClick={async () => {
       try {
         await api(projectId, `/web-acls/${acl.id}`, {
@@ -96,24 +99,20 @@ function SampledRequests({ projectId, acl }) {
   return <div className="mt-4 space-y-2">
     <Label>Sampled requests (last 3 h, ≤ 100 per rule per stage)</Label>
     <div className="flex flex-wrap gap-2">
-      <select
-        className="rounded-md border px-2 py-1 text-sm"
-        value={filters.stage}
-        onChange={(event) => setFilters({ ...filters, stage: event.target.value })}
-        aria-label="Stage filter"
-      >
-        <option value="">All stages</option>
-        {stages.map((name) => <option key={name} value={name}>{name}</option>)}
-      </select>
-      <select
-        className="rounded-md border px-2 py-1 text-sm"
-        value={filters.rule}
-        onChange={(event) => setFilters({ ...filters, rule: event.target.value })}
-        aria-label="Rule filter"
-      >
-        <option value="">All rules</option>
-        {rules.map((name) => <option key={name} value={name}>{name}</option>)}
-      </select>
+      <Select value={filters.stage || ALL} onValueChange={(value) => setFilters({ ...filters, stage: value === ALL ? "" : value })}>
+        <SelectTrigger size="sm" className="w-full sm:w-44" aria-label="Stage filter"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>All stages</SelectItem>
+          {stages.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Select value={filters.rule || ALL} onValueChange={(value) => setFilters({ ...filters, rule: value === ALL ? "" : value })}>
+        <SelectTrigger size="sm" className="w-full sm:w-44" aria-label="Rule filter"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>All rules</SelectItem>
+          {rules.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}
+        </SelectContent>
+      </Select>
     </div>
     {error ? <p className="text-xs text-destructive">{error}</p> : null}
     {rows === null && !error ? <p className="text-xs text-muted-foreground">Loading sampled requests…</p> : null}
@@ -143,10 +142,10 @@ function AclDetail({ projectId, acl, onChanged, onClose }) {
       <ul className="space-y-1 text-sm">
         {(acl.associations ?? []).map((entry) => <li key={entry.id} className="font-mono text-xs">{entry.apiId} · {entry.stageName}</li>)}
       </ul>
-      <div className="flex items-end gap-2">
-        <div><Label>API id</Label><Input value={assoc.apiId} onChange={(event) => setAssoc({ ...assoc, apiId: event.target.value })} /></div>
-        <div><Label>Stage</Label><Input value={assoc.stageName} onChange={(event) => setAssoc({ ...assoc, stageName: event.target.value })} /></div>
-        <Button size="sm" onClick={async () => {
+      <div className="flex flex-wrap items-end gap-2">
+        <div><Label htmlFor="waf-assoc-api">API id</Label><Input id="waf-assoc-api" value={assoc.apiId} onChange={(event) => setAssoc({ ...assoc, apiId: event.target.value })} /></div>
+        <div><Label htmlFor="waf-assoc-stage">Stage</Label><Input id="waf-assoc-stage" value={assoc.stageName} onChange={(event) => setAssoc({ ...assoc, stageName: event.target.value })} /></div>
+        <Button onClick={async () => {
           try {
             await api(projectId, `/web-acls/${acl.id}/associations`, { method: "POST", body: JSON.stringify(assoc) });
             toast.success("Associated.");
@@ -190,9 +189,9 @@ function SetsManager({ projectId, kind }) {
       </li>)}
     </ul>
     <div className="flex flex-wrap items-end gap-2">
-      <div><Label>Name</Label><Input value={name} onChange={(event) => setName(event.target.value)} /></div>
-      <div className="min-w-64 flex-1"><Label>{kind === "ip" ? "CIDRs (comma separated)" : "Patterns (comma separated)"}</Label><Input value={entries} onChange={(event) => setEntries(event.target.value)} placeholder={kind === "ip" ? "203.0.113.0/24" : "^/admin"} /></div>
-      <Button size="sm" onClick={async () => {
+      <div><Label htmlFor={`waf-${kind}-set-name`}>Name</Label><Input id={`waf-${kind}-set-name`} value={name} onChange={(event) => setName(event.target.value)} /></div>
+      <div className="min-w-64 flex-1"><Label htmlFor={`waf-${kind}-set-entries`}>{kind === "ip" ? "CIDRs (comma separated)" : "Patterns (comma separated)"}</Label><Input id={`waf-${kind}-set-entries`} value={entries} onChange={(event) => setEntries(event.target.value)} placeholder={kind === "ip" ? "203.0.113.0/24" : "^/admin"} /></div>
+      <Button onClick={async () => {
         try {
           const list = entries.split(",").map((part) => part.trim()).filter(Boolean);
           await api(projectId, path, {
@@ -255,22 +254,22 @@ export function WafScreen() {
   }, [load, projectId, selected]);
 
   if (!can("pods.domains.view")) return <EmptyState icon={LockKeyhole} title="Access unavailable" description="Your current team access does not allow this screen." />;
-  if (state.status === "loading") return <LogoLoading />;
+  if (state.status === "loading") return <LoadingArea label="Loading web ACLs" />;
   if (state.status === "error") return <EmptyState title="Could not load web ACLs" description={state.error} />;
 
   return <div className="space-y-4">
     <ScreenHeader
       title="Web application firewall"
       description="IP sets, regex sets and web ACLs (REST APIs)."
-      action={<Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" />New web ACL</Button>}
+      actions={<Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" />New web ACL</Button>}
     />
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       <Button variant="outline" size="sm" asChild><a href="../domains">Custom domains</a></Button>
     </div>
     {state.items.length === 0 ? <EmptyState icon={Shield} title="No web ACLs" description="Create one, add rules, then associate it with an API stage." /> : <SectionCard title="Web ACLs">
       <ul className="space-y-2">
         {state.items.map((entry) => <li key={entry.id}>
-          <button type="button" className="flex w-full items-center gap-3 rounded-md border p-3 text-left text-sm hover:bg-muted/50" onClick={async () => {
+          <Button type="button" variant="outline" className="h-auto w-full flex-wrap justify-start gap-3 whitespace-normal p-3 text-left font-normal" onClick={async () => {
             try {
               setSelected(await api(projectId, `/web-acls/${entry.id}`));
             } catch (error) {
@@ -280,7 +279,7 @@ export function WafScreen() {
             <span className="font-medium">{entry.name}</span>
             <Badge variant="outline">default {entry.defaultAction}</Badge>
             <span className="ml-auto text-xs text-muted-foreground">{(entry.rules ?? []).length} rules</span>
-          </button>
+          </Button>
         </li>)}
       </ul>
     </SectionCard>}
@@ -290,8 +289,8 @@ export function WafScreen() {
     <Dialog open={creating} onOpenChange={setCreating}>
       <DialogContent>
         <DialogHeader><DialogTitle>New web ACL</DialogTitle><DialogDescription>Default action applies when no rule terminates.</DialogDescription></DialogHeader>
-        <Label>Name</Label>
-        <Input value={name} onChange={(event) => setName(event.target.value)} />
+        <Label htmlFor="waf-acl-name">Name</Label>
+        <Input id="waf-acl-name" value={name} onChange={(event) => setName(event.target.value)} />
         <DialogFooter>
           <Button variant="outline" onClick={() => setCreating(false)}>Cancel</Button>
           <Button onClick={async () => {

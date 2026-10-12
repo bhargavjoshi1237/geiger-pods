@@ -5,13 +5,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { BellRing, LockKeyhole, Plus } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -69,7 +68,7 @@ export function AlarmsScreen() {
       description="CloudWatch-style M-of-N alarms. Transitions notify exactly once."
       actions={writable ? <Button onClick={() => setCreating(true)}><Plus className="size-4" />New alarm</Button> : null}
     />
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <LoadingArea panel label="Loading alarms" /> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={BellRing} title="Alarms unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState icon={BellRing} title="No alarms yet" description="Create one to get notified when a metric breaches its threshold." action={writable ? <Button onClick={() => setCreating(true)}>New alarm</Button> : undefined} /></SectionCard> : null}
     {state.status === "ready" && state.items.length > 0 ? <SectionCard title="Alarms" description={`${state.items.length} alarm${state.items.length === 1 ? "" : "s"}.`}>
@@ -114,7 +113,7 @@ export function AlarmsScreen() {
     {history ? <SectionCard
       title={`History — ${history.alarm.name}`}
       description="State transitions with reasons."
-      actions={<Button variant="outline" size="sm" onClick={() => setHistory(null)}>Close</Button>}
+      action={<Button variant="outline" size="sm" onClick={() => setHistory(null)}>Close</Button>}
     >
       {history.items.length === 0 ? <p className="text-sm text-muted-foreground">No transitions yet.</p> : <ul className="divide-y divide-border">
         {history.items.map((entry) => <li key={entry.id} className="py-2 font-mono text-xs">

@@ -7,11 +7,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LockKeyhole } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
+import { Checkbox } from "@geiger/ui/checkbox";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
@@ -130,15 +130,15 @@ export function StageLoggingTab({ apiId, stageName }) {
 
   return <div className="space-y-8">
     <ScreenHeader title={`Logs & tracing — ${stageName}`} description="Access logs, execution logs, detailed metrics and tracing for this stage." />
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <LoadingArea panel label="Loading logging settings" /> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={LockKeyhole} title="Settings unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" ? <>
       <SectionCard title="Access log" description="The format must contain $context.requestId or $context.extendedRequestId.">
         <div className="space-y-4">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} disabled={!writable} />
-            Access logging enabled
-          </label>
+          <div className="flex items-center gap-2">
+            <Checkbox id="stage-log-enabled" checked={enabled} onCheckedChange={(value) => setEnabled(value === true)} disabled={!writable} />
+            <Label htmlFor="stage-log-enabled" className="font-normal">Access logging enabled</Label>
+          </div>
           <div className="flex flex-wrap gap-2">
             {[["CLF", "$context.identity.sourceIp $context.identity.caller $context.identity.user [$context.requestTime] \"$context.httpMethod $context.resourcePath $context.protocol\" $context.status $context.responseLength $context.requestId"], ["JSON", "{ \"requestId\":\"$context.requestId\", \"ip\": \"$context.identity.sourceIp\", \"caller\":\"$context.identity.caller\", \"user\":\"$context.identity.user\",\"requestTime\":\"$context.requestTime\", \"httpMethod\":\"$context.httpMethod\",\"resourcePath\":\"$context.resourcePath\", \"status\":\"$context.status\",\"protocol\":\"$context.protocol\", \"responseLength\":\"$context.responseLength\" }"]].map(([name, preset]) => <Button key={name} variant="outline" size="sm" disabled={!writable} onClick={() => setFormat(preset)}>{name} preset</Button>)}
           </div>
@@ -162,18 +162,18 @@ export function StageLoggingTab({ apiId, stageName }) {
             <Label htmlFor="stage-log-level">Logging level (OFF / ERROR / INFO)</Label>
             <Input id="stage-log-level" value={level} onChange={(event) => setLevel(event.target.value.toUpperCase())} disabled={!writable} />
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={dataTrace} onChange={(event) => setDataTrace(event.target.checked)} disabled={!writable} />
-            Data trace (warning: bodies are stored — restrict pods.logs.data)
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={detailed} onChange={(event) => setDetailed(event.target.checked)} disabled={!writable} />
-            Detailed (per-route) metrics
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={tracing} onChange={(event) => setTracing(event.target.checked)} disabled={!writable} />
-            Tracing (1 req/s reservoir + 5% sampling)
-          </label>
+          <div className="flex items-center gap-2">
+            <Checkbox id="stage-log-data-trace" checked={dataTrace} onCheckedChange={(value) => setDataTrace(value === true)} disabled={!writable} />
+            <Label htmlFor="stage-log-data-trace" className="font-normal">Data trace (warning: bodies are stored — restrict pods.logs.data)</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox id="stage-log-detailed" checked={detailed} onCheckedChange={(value) => setDetailed(value === true)} disabled={!writable} />
+            <Label htmlFor="stage-log-detailed" className="font-normal">Detailed (per-route) metrics</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox id="stage-log-tracing" checked={tracing} onCheckedChange={(value) => setTracing(value === true)} disabled={!writable} />
+            <Label htmlFor="stage-log-tracing" className="font-normal">Tracing (1 req/s reservoir + 5% sampling)</Label>
+          </div>
           {writable ? <Button onClick={save} disabled={busy}>{busy ? "Saving…" : "Save settings"}</Button> : null}
         </div>
       </SectionCard>

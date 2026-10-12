@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { GitBranch } from "lucide-react";
-import { EmptyState, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
+import { Checkbox } from "@geiger/ui/checkbox";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
+import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -137,7 +138,7 @@ export function CanaryTab({ api, stage, onChanged }) {
     }
   }
 
-  if (state.status === "loading") return <LogoLoading label="Loading canary…" />;
+  if (state.status === "loading") return <LoadingArea label="Loading canary" />;
   const { canary } = state;
 
   return <div className="space-y-4">
@@ -146,7 +147,7 @@ export function CanaryTab({ api, stage, onChanged }) {
         <dt className="text-muted-foreground">Base deployment</dt><dd className="font-mono">{String(stage.deploymentId ?? "—").slice(0, 8)}</dd>
         <dt className="text-muted-foreground">Canary deployment</dt><dd className="font-mono">{String(canary.deploymentId ?? "—").slice(0, 8)}</dd>
       </dl> : <p className="text-xs text-muted-foreground">No canary on this stage. Set a percentage below to create one from the current deployment.</p>}
-      <div className="space-y-2">
+      <div className="mt-4 space-y-2">
         <Label htmlFor={`canary-percent-${stage.id}`}>Traffic to canary: {percent}%</Label>
         <Input
           id={`canary-percent-${stage.id}`}
@@ -154,36 +155,36 @@ export function CanaryTab({ api, stage, onChanged }) {
           onChange={(event) => setPercent(event.target.value)}
         />
       </div>
-      <div className="space-y-2">
+      <div className="mt-4 space-y-2">
         <Label htmlFor={`canary-overrides-${stage.id}`}>Stage variable overrides (JSON)</Label>
-        <textarea
+        <Textarea
           id={`canary-overrides-${stage.id}`}
-          className="min-h-20 w-full rounded-md border border-input bg-background p-2 font-mono text-xs"
+          className="min-h-20 font-mono text-xs"
           value={overridesText}
           onChange={(event) => setOverridesText(event.target.value)}
           spellCheck={false}
         />
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={useStageCache} onChange={(event) => setUseStageCache(event.target.checked)} />
-        Canary uses the stage cache
-      </label>
-      <div className="flex flex-wrap gap-2">
+      <div className="mt-4 flex items-center gap-2">
+        <Checkbox id={`canary-use-cache-${stage.id}`} checked={useStageCache} onCheckedChange={(value) => setUseStageCache(value === true)} />
+        <Label htmlFor={`canary-use-cache-${stage.id}`} className="font-normal">Canary uses the stage cache</Label>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
         <Button size="sm" disabled={busy || !can("pods.stage.write")} onClick={save}>{canary ? "Update canary" : "Create canary"}</Button>
         {canary ? <>
           <Button variant="outline" size="sm" disabled={busy || !can("pods.stage.promote")} onClick={promote}>Promote</Button>
           <Button variant="ghost" size="sm" disabled={busy || !can("pods.stage.write")} onClick={remove}>Delete canary</Button>
         </> : null}
       </div>
-      {canary ? <div className="flex flex-wrap items-center gap-4 text-sm">
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={mergeVariables} onChange={(event) => setMergeVariables(event.target.checked)} />
-          Merge overrides into stage variables on promote
-        </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={removeCanary} onChange={(event) => setRemoveCanary(event.target.checked)} />
-          Remove canary after promote (otherwise reset to 0%)
-        </label>
+      {canary ? <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex items-center gap-2">
+          <Checkbox id={`canary-merge-${stage.id}`} checked={mergeVariables} onCheckedChange={(value) => setMergeVariables(value === true)} />
+          <Label htmlFor={`canary-merge-${stage.id}`} className="font-normal leading-snug">Merge overrides into stage variables on promote</Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Checkbox id={`canary-remove-${stage.id}`} checked={removeCanary} onCheckedChange={(value) => setRemoveCanary(value === true)} />
+          <Label htmlFor={`canary-remove-${stage.id}`} className="font-normal leading-snug">Remove canary after promote (otherwise reset to 0%)</Label>
+        </div>
       </div> : null}
     </SectionCard>
   </div>;

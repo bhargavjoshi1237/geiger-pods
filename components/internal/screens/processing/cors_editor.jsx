@@ -1,14 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Globe } from "lucide-react";
+import { Globe, X } from "lucide-react";
 import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
+import { Checkbox } from "@geiger/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { toast } from "sonner";
 
 const HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "*"];
+
+const methodId = (method) => (method === "*" ? "any" : method.toLowerCase());
 
 const EMPTY_CORS = {
   allowOrigins: [],
@@ -57,9 +61,9 @@ export function CorsEditor({ value, onChange, onSave, saving = false, error = nu
         <div className="flex flex-wrap gap-2">
           {cors.allowOrigins.length === 0 ? <p className="text-sm text-muted-foreground">No origins yet — no CORS headers will be sent.</p> : null}
           {cors.allowOrigins.map((origin) => (
-            <button key={origin} type="button" className="rounded-full border px-3 py-1 text-xs" onClick={() => update({ allowOrigins: cors.allowOrigins.filter((item) => item !== origin) })} title="Remove origin">
-              {origin} ✕
-            </button>
+            <Button key={origin} type="button" variant="outline" size="xs" className="rounded-full font-mono" onClick={() => update({ allowOrigins: cors.allowOrigins.filter((item) => item !== origin) })} title="Remove origin">
+              {origin} <X />
+            </Button>
           ))}
         </div>
         <div className="mt-3 flex gap-2">
@@ -70,10 +74,10 @@ export function CorsEditor({ value, onChange, onSave, saving = false, error = nu
       <SectionCard title="Allowed methods">
         <div className="flex flex-wrap gap-2">
           {HTTP_METHODS.map((method) => (
-            <label key={method} className="flex items-center gap-1 rounded border px-2 py-1 text-xs">
-              <input type="checkbox" checked={cors.allowMethods.includes(method)} onChange={() => toggle("allowMethods", method)} />
-              {method}
-            </label>
+            <div key={method} className="flex items-center gap-1.5 rounded-md border px-2 py-1">
+              <Checkbox id={`cors-method-${methodId(method)}`} checked={cors.allowMethods.includes(method)} onCheckedChange={() => toggle("allowMethods", method)} />
+              <Label htmlFor={`cors-method-${methodId(method)}`} className="text-xs font-normal">{method}</Label>
+            </div>
           ))}
         </div>
       </SectionCard>
@@ -91,10 +95,10 @@ export function CorsEditor({ value, onChange, onSave, saving = false, error = nu
             <Label htmlFor="cors-max-age">Max age (0–86400 seconds)</Label>
             <Input id="cors-max-age" type="number" min={0} max={86400} value={cors.maxAge ?? 0} onChange={(event) => update({ maxAge: Number(event.target.value) })} />
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={cors.allowCredentials} onChange={(event) => update({ allowCredentials: event.target.checked })} />
-            Allow credentials
-          </label>
+          <div className="flex items-center gap-2">
+            <Checkbox id="cors-allow-credentials" checked={cors.allowCredentials} onCheckedChange={(checked) => update({ allowCredentials: checked === true })} />
+            <Label htmlFor="cors-allow-credentials" className="font-normal">Allow credentials</Label>
+          </div>
           {starWithCredentials ? <p className="text-sm text-red-600">AWS rejects this combination: allowCredentials must not be true when allowOrigins contains *.</p> : null}
         </div>
       </SectionCard>
@@ -113,13 +117,14 @@ export function EnableCorsDialog({ open, onOpenChange, onConfirm }) {
   const [allowOrigin, setAllowOrigin] = useState("'*'");
   const [allowHeaders, setAllowHeaders] = useState("Content-Type,X-Amz-Date,Authorization,X-Api-Key");
   const [methods, setMethods] = useState(["GET", "POST", "OPTIONS"]);
-  if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true" aria-label="Enable CORS">
-      <div className="w-full max-w-lg rounded-lg bg-background p-6 shadow-xl">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><Globe size={18} /> Enable CORS</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Creates an OPTIONS mock method returning 200 with Access-Control-Allow-* headers, and adds the Allow-Origin mapping to the selected methods.</p>
-        <div className="mt-4 grid gap-3">
+    <Dialog open={Boolean(open)} onOpenChange={(next) => onOpenChange?.(next)}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Globe size={18} /> Enable CORS</DialogTitle>
+          <DialogDescription>Creates an OPTIONS mock method returning 200 with Access-Control-Allow-* headers, and adds the Allow-Origin mapping to the selected methods.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3">
           <div>
             <Label htmlFor="enable-cors-origin">Allow origin (quoted literal)</Label>
             <Input id="enable-cors-origin" value={allowOrigin} onChange={(event) => setAllowOrigin(event.target.value)} />
@@ -130,19 +135,19 @@ export function EnableCorsDialog({ open, onOpenChange, onConfirm }) {
           </div>
           <div className="flex flex-wrap gap-2">
             {HTTP_METHODS.filter((method) => method !== "*").map((method) => (
-              <label key={method} className="flex items-center gap-1 rounded border px-2 py-1 text-xs">
-                <input type="checkbox" checked={methods.includes(method)} onChange={() => setMethods(methods.includes(method) ? methods.filter((item) => item !== method) : [...methods, method])} />
-                {method}
-              </label>
+              <div key={method} className="flex items-center gap-1.5 rounded-md border px-2 py-1">
+                <Checkbox id={`enable-cors-method-${methodId(method)}`} checked={methods.includes(method)} onCheckedChange={() => setMethods(methods.includes(method) ? methods.filter((item) => item !== method) : [...methods, method])} />
+                <Label htmlFor={`enable-cors-method-${methodId(method)}`} className="text-xs font-normal">{method}</Label>
+              </div>
             ))}
           </div>
           <p className="text-xs text-muted-foreground">Preview: OPTIONS → MOCK 200 with method.response.header.Access-Control-Allow-Origin = {allowOrigin}; selected methods gain method.response.header.Access-Control-Allow-Origin on their 200 responses.</p>
         </div>
-        <div className="mt-4 flex justify-end gap-2">
+        <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange?.(false)}>Cancel</Button>
           <Button type="button" onClick={() => { onConfirm?.({ allowOrigin, allowMethods: methods, allowHeaders: allowHeaders.split(",").map((part) => part.trim()).filter(Boolean) }); onOpenChange?.(false); }}>Create OPTIONS mock</Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

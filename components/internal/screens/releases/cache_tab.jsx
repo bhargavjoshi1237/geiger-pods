@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { DatabaseZap } from "lucide-react";
-import { EmptyState, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
+import { Checkbox } from "@geiger/ui/checkbox";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -67,7 +68,7 @@ export function CacheTab({ api, stage, onChanged }) {
   if (!can("pods.apis.view")) {
     return <EmptyState icon={DatabaseZap} title="Access unavailable" description="Your current team access does not allow this screen." />;
   }
-  if (state.status === "loading") return <LogoLoading label="Loading cache…" />;
+  if (state.status === "loading") return <LoadingArea label="Loading cache settings" />;
   if (state.status === "error") return <EmptyState icon={DatabaseZap} title="Cache unavailable" description="Could not load the stage cache settings." />;
 
   async function save() {
@@ -124,55 +125,59 @@ export function CacheTab({ api, stage, onChanged }) {
         Safety rule (on by default): authenticated responses never cross consumers — the caller identity is part of the
         cache key. Opt out per project with <span className="font-mono">features.cacheSharedAcrossPrincipals</span> (AWS behavior).
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={form.enabled} onChange={(event) => setForm({ ...form, enabled: event.target.checked })} />
-        Enable cache for this stage
-      </label>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="mt-4 flex items-center gap-2">
+        <Checkbox id={`cache-enabled-${stage.id}`} checked={form.enabled} onCheckedChange={(value) => setForm({ ...form, enabled: value === true })} />
+        <Label htmlFor={`cache-enabled-${stage.id}`} className="font-normal">Enable cache for this stage</Label>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="space-y-1">
-          <Label>Capacity (GB)</Label>
-          <select className="w-full rounded-md border border-input bg-background p-2 text-sm" value={form.size} onChange={(event) => setForm({ ...form, size: event.target.value })}>
-            {SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
-          </select>
+          <Label htmlFor={`cache-size-${stage.id}`}>Capacity (GB)</Label>
+          <Select value={form.size} onValueChange={(value) => setForm({ ...form, size: value })}>
+            <SelectTrigger id={`cache-size-${stage.id}`}><SelectValue /></SelectTrigger>
+            <SelectContent>{SIZES.map((size) => <SelectItem key={size} value={size}>{size}</SelectItem>)}</SelectContent>
+          </Select>
         </div>
         <div className="space-y-1">
           <Label htmlFor={`cache-ttl-${stage.id}`}>Default TTL (s)</Label>
           <Input id={`cache-ttl-${stage.id}`} type="number" min={0} max={3600} value={form.defaultTtl} onChange={(event) => setForm({ ...form, defaultTtl: event.target.value })} />
         </div>
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={form.encrypted} onChange={(event) => setForm({ ...form, encrypted: event.target.checked })} />
-        Encrypt cached bodies (AES-256-GCM)
-      </label>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={form.requireAuth} onChange={(event) => setForm({ ...form, requireAuth: event.target.checked })} />
-        Require authorization for Cache-Control: max-age=0 invalidation
-      </label>
-      <div className="space-y-1">
-        <Label>Unauthorized invalidation strategy</Label>
-        <select className="w-full rounded-md border border-input bg-background p-2 text-sm" value={form.strategy} onChange={(event) => setForm({ ...form, strategy: event.target.value })}>
-          {STRATEGIES.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
-        </select>
+      <div className="mt-4 space-y-2">
+        <div className="flex items-center gap-2">
+          <Checkbox id={`cache-encrypted-${stage.id}`} checked={form.encrypted} onCheckedChange={(value) => setForm({ ...form, encrypted: value === true })} />
+          <Label htmlFor={`cache-encrypted-${stage.id}`} className="font-normal">Encrypt cached bodies (AES-256-GCM)</Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Checkbox id={`cache-require-auth-${stage.id}`} checked={form.requireAuth} onCheckedChange={(value) => setForm({ ...form, requireAuth: value === true })} />
+          <Label htmlFor={`cache-require-auth-${stage.id}`} className="font-normal leading-snug">Require authorization for Cache-Control: max-age=0 invalidation</Label>
+        </div>
       </div>
-      <div className="space-y-2">
+      <div className="mt-4 space-y-1">
+        <Label htmlFor={`cache-strategy-${stage.id}`}>Unauthorized invalidation strategy</Label>
+        <Select value={form.strategy} onValueChange={(value) => setForm({ ...form, strategy: value })}>
+          <SelectTrigger id={`cache-strategy-${stage.id}`}><SelectValue /></SelectTrigger>
+          <SelectContent>{STRATEGIES.map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>
+      <div className="mt-4 space-y-2">
         <Label>Per-method overrides (resourcePath/METHOD or */*)</Label>
-        {methodRows.map((row, index) => <div key={index} className="flex items-center gap-2 text-xs">
-          <Input className="font-mono" value={row.key} placeholder="/pets/GET" onChange={(event) => setMethodRows(methodRows.map((entry, at) => (at === index ? { ...entry, key: event.target.value } : entry)))} />
-          <Input type="number" min={0} max={3600} value={row.ttl} onChange={(event) => setMethodRows(methodRows.map((entry, at) => (at === index ? { ...entry, ttl: event.target.value } : entry)))} />
-          <label className="flex items-center gap-1">
-            <input type="checkbox" checked={row.enabled} onChange={(event) => setMethodRows(methodRows.map((entry, at) => (at === index ? { ...entry, enabled: event.target.checked } : entry)))} />
-            cache
-          </label>
+        {methodRows.map((row, index) => <div key={index} className="flex flex-wrap items-center gap-2 text-xs">
+          <Input className="min-w-0 flex-1 basis-full font-mono sm:basis-0" value={row.key} placeholder="/pets/GET" aria-label="Resource path and method" onChange={(event) => setMethodRows(methodRows.map((entry, at) => (at === index ? { ...entry, key: event.target.value } : entry)))} />
+          <Input className="w-28" type="number" min={0} max={3600} value={row.ttl} aria-label="TTL (s)" onChange={(event) => setMethodRows(methodRows.map((entry, at) => (at === index ? { ...entry, ttl: event.target.value } : entry)))} />
+          <div className="flex items-center gap-2">
+            <Checkbox id={`cache-row-${stage.id}-${index}`} checked={row.enabled} onCheckedChange={(value) => setMethodRows(methodRows.map((entry, at) => (at === index ? { ...entry, enabled: value === true } : entry)))} />
+            <Label htmlFor={`cache-row-${stage.id}-${index}`} className="font-normal">cache</Label>
+          </div>
           <Button variant="ghost" size="sm" onClick={() => setMethodRows(methodRows.filter((_, at) => at !== index))}>Remove</Button>
         </div>)}
         <Button variant="outline" size="sm" onClick={() => setMethodRows([...methodRows, { key: "", ttl: 300, enabled: true }])}>Add override</Button>
       </div>
-      <Button size="sm" disabled={busy || !can("pods.stage.write")} onClick={save}>Save cache settings</Button>
+      <Button size="sm" className="mt-4" disabled={busy || !can("pods.stage.write")} onClick={save}>Save cache settings</Button>
     </SectionCard>
     <SectionCard title="Flush entire cache" description="Invalidates every entry immediately (O(1) epoch bump).">
       <div className="flex flex-wrap items-center gap-2">
-        <Input className="max-w-64" value={confirm} placeholder={`Type ${stage.name} to confirm`} onChange={(event) => setConfirm(event.target.value)} />
-        <Button variant="destructive" size="sm" disabled={busy || !can("pods.cache.flush")} onClick={flush}>Flush cache</Button>
+        <Input className="w-full sm:w-64" value={confirm} placeholder={`Type ${stage.name} to confirm`} onChange={(event) => setConfirm(event.target.value)} />
+        <Button variant="destructive" disabled={busy || !can("pods.cache.flush")} onClick={flush}>Flush cache</Button>
       </div>
     </SectionCard>
   </div>;

@@ -6,12 +6,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Download, ScrollText } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 
@@ -85,10 +84,10 @@ export function AuditScreen() {
     <ScreenHeader
       title="Audit"
       description="Every management change, newest first. Sensitive values are redacted at write time."
-      actions={<div className="flex gap-2">
+      actions={<>
         <Button variant="outline" onClick={() => search()}>Search</Button>
         <Button variant="outline" onClick={exportCsv}><Download className="size-4" />Export CSV</Button>
-      </div>}
+      </>}
     />
     <SectionCard title="Filters" description="Retention is unlimited by default; a project setting can lower it to ≥ 90 days.">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -106,7 +105,7 @@ export function AuditScreen() {
         </div>
       </div>
     </SectionCard>
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <LoadingArea panel label="Loading audit entries" /> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={ScrollText} title="Audit unavailable" description={state.error} action={<Button variant="outline" onClick={() => search().catch((error) => toast.error(error.message))}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState icon={ScrollText} title="No audit entries" description="Management changes appear here once someone creates or edits a resource." /></SectionCard> : null}
     {state.status === "ready" && state.items.length > 0 ? <SectionCard title={`${state.items.length} entries`} description="Select an entry for its before/after diff.">
@@ -116,7 +115,7 @@ export function AuditScreen() {
           return <li key={id} className="py-3 first:pt-0 last:pb-0">
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <Badge variant="outline">{entry.action ?? entry.action_type ?? "unknown"}</Badge>
-              <span className="font-mono text-muted-foreground">{entry.resource_type ?? entry.resourceType}{entry.resource_id ?? entry.resourceId ? ` ${entry.resource_id ?? entry.resourceId}` : ""}</span>
+              <span className="min-w-0 break-all font-mono text-muted-foreground">{entry.resource_type ?? entry.resourceType}{entry.resource_id ?? entry.resourceId ? ` ${entry.resource_id ?? entry.resourceId}` : ""}</span>
               <span className="text-muted-foreground">{entry.created_at ?? entry.createdAt ?? ""}</span>
               <span className="flex-1" />
               <Button variant="outline" size="sm" onClick={() => setExpanded(expanded === id ? null : id)}>{expanded === id ? "Hide diff" : "Diff"}</Button>

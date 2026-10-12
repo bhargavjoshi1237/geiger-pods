@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: { default: "Pods — Geiger Studio", template: "%s — Geiger Pods" },
+  title: { default: "Pods - Geiger Studio", template: "%s - Geiger Studio" },
   description: "Manage your APIs, services and releases in a shared Geiger workspace.",
   icons: { icon: `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/logo1.svg` },
 };

@@ -6,13 +6,13 @@
 // method/route PATCH endpoints; capability gating hides JWT on WebSocket and
 // the key toggle where the control plane rejects it (HTTP routes).
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { ShieldCheck } from "lucide-react";
-import { EmptyState, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
+import { Checkbox } from "@geiger/ui/checkbox";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
@@ -48,6 +48,7 @@ function useAuthForm(target) {
 function AuthFields({ form, authorizers, protocol, keyAllowed, disabled }) {
   const creatable = authorizerTypesFor(protocol);
   const visible = authorizers.filter((entry) => creatable.includes(entry.type));
+  const keyId = useId();
   return <div className="grid gap-3">
     <div className="space-y-2">
       <Label>Authorization type</Label>
@@ -70,10 +71,10 @@ function AuthFields({ form, authorizers, protocol, keyAllowed, disabled }) {
       <Label htmlFor="auth-scopes">Scopes (space-separated, at least one must match)</Label>
       <Input id="auth-scopes" value={form.scopesText} onChange={(event) => form.setScopesText(event.target.value)} placeholder="read:pets write:pets" disabled={disabled} spellCheck={false} />
     </div> : null}
-    {keyAllowed ? <label className="flex items-center gap-2 text-sm">
-      <input type="checkbox" checked={form.apiKeyRequired} onChange={(event) => form.setApiKeyRequired(event.target.checked)} disabled={disabled} />
-      API key required
-    </label> : <p className="text-xs text-muted-foreground">API keys are enforced on REST methods and WebSocket routes only.</p>}
+    {keyAllowed ? <div className="flex items-center gap-2">
+      <Checkbox id={keyId} checked={form.apiKeyRequired} onCheckedChange={(checked) => form.setApiKeyRequired(checked === true)} disabled={disabled} />
+      <Label htmlFor={keyId} className="font-normal">API key required</Label>
+    </div> : <p className="text-xs text-muted-foreground">API keys are enforced on REST methods and WebSocket routes only.</p>}
   </div>;
 }
 
@@ -100,7 +101,7 @@ export function MethodAuthPicker({ api, resourceId, method, onSaved }) {
     return () => { alive = false; };
   }, [project.id, apiRef]);
 
-  if (loading) return <SectionCard><div className="flex justify-center py-6"><LogoLoading /></div></SectionCard>;
+  if (loading) return <SectionCard><LoadingArea label="Loading authorizers" className="py-6" /></SectionCard>;
 
   const save = async () => {
     const scopes = form.scopesText.split(/\s+/).map((scope) => scope.trim()).filter(Boolean);
@@ -160,7 +161,7 @@ export function RouteAuthPicker({ api, route, onSaved }) {
     return () => { alive = false; };
   }, [project.id, apiRef]);
 
-  if (loading) return <div className="flex justify-center py-4"><LogoLoading /></div>;
+  if (loading) return <LoadingArea label="Loading authorizers" size={32} className="py-4" />;
 
   const save = async () => {
     const scopes = form.scopesText.split(/\s+/).map((scope) => scope.trim()).filter(Boolean);

@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Clock3, Network } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
 import { NOT_AVAILABLE, tabsForProtocol } from "./tabs";
@@ -104,7 +103,7 @@ function Detail({ params }) {
 
   if (state.status === "loading") {
     return <div className="mx-auto w-full space-y-8 px-2 py-4 lg:max-w-[85%] lg:px-0">
-      <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard>
+      <SectionCard><LoadingArea label="Loading API" className="py-10" /></SectionCard>
     </div>;
   }
   if (state.status === "error") {

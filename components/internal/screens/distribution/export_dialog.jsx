@@ -5,8 +5,11 @@
 
 import { useState } from "react";
 import { Download } from "lucide-react";
-import { EmptyState, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, Field, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
+import { Checkbox } from "@geiger/ui/checkbox";
+import { Label } from "@geiger/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -59,36 +62,48 @@ export function ExportDialog({ api, stages }) {
 
   return (
     <SectionCard>
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="text-sm">Stage
-          <select value={stage} onChange={(event) => setStage(event.target.value)} className="ml-1 rounded-md border border-border bg-background px-2 py-1 text-sm">
-            {stages.map((entry) => <option key={entry.name} value={entry.name}>{entry.name}</option>)}
-          </select>
-        </label>
-        <label className="text-sm">Type
-          <select value={type} onChange={(event) => setType(event.target.value)} className="ml-1 rounded-md border border-border bg-background px-2 py-1 text-sm">
-            <option value="oas30">OpenAPI 3.0</option>
-            <option value="swagger">Swagger 2.0</option>
-          </select>
-        </label>
-        <label className="text-sm">Format
-          <select value={format} onChange={(event) => setFormat(event.target.value)} className="ml-1 rounded-md border border-border bg-background px-2 py-1 text-sm">
-            <option value="json">JSON</option>
-            <option value="yaml">YAML</option>
-          </select>
-        </label>
-        <label className="text-sm">Extensions
-          <select value={extensions} onChange={(event) => setExtensions(event.target.value)} className="ml-1 rounded-md border border-border bg-background px-2 py-1 text-sm">
-            <option value="aws">AWS (round-trips to AWS)</option>
-            <option value="pods">Pods</option>
-            <option value="none">None</option>
-            <option value="postman">Postman v2.1</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-1 text-sm">
-          <input type="checkbox" checked={includeDocs} onChange={(event) => setIncludeDocs(event.target.checked)} />
-          Include docs
-        </label>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Field label="Stage" htmlFor="export-stage">
+          <Select value={stage} onValueChange={setStage}>
+            <SelectTrigger id="export-stage"><SelectValue /></SelectTrigger>
+            <SelectContent>{stages.map((entry) => <SelectItem key={entry.name} value={entry.name}>{entry.name}</SelectItem>)}</SelectContent>
+          </Select>
+        </Field>
+        <Field label="Type" htmlFor="export-type">
+          <Select value={type} onValueChange={setType}>
+            <SelectTrigger id="export-type"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="oas30">OpenAPI 3.0</SelectItem>
+              <SelectItem value="swagger">Swagger 2.0</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Format" htmlFor="export-format">
+          <Select value={format} onValueChange={setFormat}>
+            <SelectTrigger id="export-format"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="json">JSON</SelectItem>
+              <SelectItem value="yaml">YAML</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Extensions" htmlFor="export-extensions">
+          <Select value={extensions} onValueChange={setExtensions}>
+            <SelectTrigger id="export-extensions"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="aws">AWS (round-trips to AWS)</SelectItem>
+              <SelectItem value="pods">Pods</SelectItem>
+              <SelectItem value="none">None</SelectItem>
+              <SelectItem value="postman">Postman v2.1</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Checkbox id="export-include-docs" checked={includeDocs} onCheckedChange={(value) => setIncludeDocs(value === true)} />
+          <Label htmlFor="export-include-docs" className="font-normal">Include docs</Label>
+        </div>
         <Button disabled={busy} onClick={onExport}>Download</Button>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">Exports render the deployed artifact, never the draft.</p>

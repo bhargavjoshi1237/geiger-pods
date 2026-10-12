@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { KeyRound } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
+import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -174,19 +174,19 @@ export function ApiKeysScreen() {
       </div>
     </SectionCard>
     <SectionCard title="Import CSV" description="AWS format: Name,Key,Description,Enabled,UsagePlanIds.">
-      <textarea
-        className="min-h-24 w-full rounded-md border border-input bg-background p-2 font-mono text-xs"
+      <Textarea
+        className="min-h-24 font-mono text-xs"
         value={csv}
         onChange={(event) => setCsv(event.target.value)}
         spellCheck={false}
         placeholder={"Name,Key,Description,Enabled,UsagePlanIds"}
       />
-      <div className="mt-2 flex gap-2">
+      <div className="mt-2 flex flex-wrap gap-2">
         <Button variant="outline" size="sm" disabled={busy || !can("pods.api_key.write")} onClick={() => importCsv(false)}>Import</Button>
         <Button variant="outline" size="sm" disabled={busy || !can("pods.api_key.write")} onClick={() => importCsv(true)}>Import (fail on warnings)</Button>
       </div>
     </SectionCard>
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <LoadingArea panel label="Loading API keys" /> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={KeyRound} title="Keys unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState icon={KeyRound} title="No API keys yet" description="Create the first key above. Keys take effect without a redeploy." /></SectionCard> : null}
     {state.status === "ready" && state.items.length > 0 ? <SectionCard title="Keys">
@@ -197,7 +197,7 @@ export function ApiKeysScreen() {
           {key.enabled ? <Badge>enabled</Badge> : <Badge variant="outline">disabled</Badge>}
           {key.customerId ? <span className="text-xs text-muted-foreground">{key.customerId}</span> : null}
           {revealed[key.id] ? <code className="font-mono text-xs">{revealed[key.id]}</code> : null}
-          <span className="flex gap-1">
+          <span className="flex flex-wrap gap-1">
             {can("pods.api_key.reveal") ? <Button variant="outline" size="sm" onClick={() => reveal(key)}>Reveal</Button> : null}
             <Button variant="outline" size="sm" disabled={!can("pods.api_key.write")} onClick={() => setEnabled(key, !key.enabled)}>{key.enabled ? "Disable" : "Enable"}</Button>
             <Button variant="outline" size="sm" disabled={busy || !can("pods.api_key.write")} onClick={() => rotate(key)}>Rotate</Button>

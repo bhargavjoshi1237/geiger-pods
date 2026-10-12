@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { AlertCircle, Folder, LockKeyhole, Settings } from "lucide-react";
-import { EmptyState } from "@geiger/ui/screen-kit";
-import { LogoLoading } from "@geiger/ui/logo-loading";
+import { EmptyState, LoadingArea as KitLoadingArea } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
 import { useSession } from "@/context/session-context";
 import { useProject } from "@/context/project-context";
 import { dashHref } from "@/lib/workspace/model.mjs";
 
+// Route-level wrapper over the kit loader: big mark, vertically centred, label read by screen readers (no caption).
 export function LoadingArea({ label = "Loading workspace" }) {
-  return <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-5" role="status"><LogoLoading size={80} /><span className="text-sm text-muted-foreground">{label}</span></div>;
+  return <KitLoadingArea size={80} label={label} className="min-h-[60dvh]" />;
 }
 
 export function WorkspaceGate({ children, requireProject = true }) {

@@ -6,13 +6,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Download, KeyRound, Plus } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -97,7 +96,7 @@ export function ClientCertificatesCard() {
       description="Gateway identity for mTLS to backends. Trust the PEM on your backend, then select the certificate on the stage."
       actions={<Button onClick={() => setCreating(true)}><Plus className="size-4" />Generate certificate</Button>}
     />
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <SectionCard><LoadingArea label="Loading client certificates" /></SectionCard> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={KeyRound} title="Certificates unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && items.length === 0 ? <SectionCard><EmptyState icon={KeyRound} title="No client certificates" description="Generate one and trust its PEM on your backend." action={<Button onClick={() => setCreating(true)}>Generate certificate</Button>} /></SectionCard> : null}
     {state.status === "ready" && items.length > 0 ? <SectionCard title="Certificates" description="Rotate by generating a replacement, switching the stage, then deleting the old one.">

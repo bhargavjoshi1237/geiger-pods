@@ -6,9 +6,9 @@
 // endpoint picker, sharing, shared-with-me).
 import { useCallback, useEffect, useState } from "react";
 import { Globe } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
-import { LogoLoading } from "@geiger/ui/logo-loading";
+import { Input } from "@geiger/ui/input";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -119,7 +119,7 @@ export function PortalListScreen() {
     }
   };
 
-  if (state.status === "loading") return <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard>;
+  if (state.status === "loading") return <SectionCard><LoadingArea label="Loading portals" /></SectionCard>;
   if (state.status === "error") {
     return <SectionCard><EmptyState icon={Globe} title="Portals unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard>;
   }
@@ -135,20 +135,20 @@ export function PortalListScreen() {
             <ul className="mt-2 space-y-1">
               {state.portals.map((portal) => (
                 <li key={portal.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-border p-2 text-sm">
-                  <span><span className="font-medium">{portal.name}</span> <span className="font-mono text-xs text-muted-foreground">/{portal.slug} · {portal.status}</span></span>
-                  <span className="flex gap-2">
+                  <span className="min-w-0"><span className="font-medium">{portal.name}</span> <span className="font-mono text-xs text-muted-foreground">/{portal.slug} · {portal.status}</span></span>
+                  <span className="flex flex-wrap items-center gap-2">
                     <a className="text-xs underline" href={`/portal/${encodeURIComponent(portal.slug)}`}>Open public page</a>
-                    {canPublish ? <Button variant="outline" disabled={busy} onClick={() => publish(portal)}>Publish</Button> : null}
-                    {canWrite ? <Button variant="outline" disabled={busy} onClick={() => disable(portal)}>Disable</Button> : null}
+                    {canPublish ? <Button variant="outline" size="sm" disabled={busy} onClick={() => publish(portal)}>Publish</Button> : null}
+                    {canWrite ? <Button variant="outline" size="sm" disabled={busy} onClick={() => disable(portal)}>Disable</Button> : null}
                   </span>
                 </li>
               ))}
             </ul>
           )}
         {canWrite ? (
-          <div className="mt-2 flex flex-wrap gap-2">
-            <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Portal name" className="rounded-md border border-border bg-background px-2 py-1 text-sm" aria-label="Portal name" />
-            <input value={form.slug} onChange={(event) => setForm({ ...form, slug: event.target.value })} placeholder="portal-slug" className="rounded-md border border-border bg-background px-2 py-1 text-sm" aria-label="Portal slug" />
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Portal name" className="w-full sm:w-56" aria-label="Portal name" />
+            <Input value={form.slug} onChange={(event) => setForm({ ...form, slug: event.target.value })} placeholder="portal-slug" className="w-full font-mono sm:w-56" aria-label="Portal slug" spellCheck={false} />
             <Button disabled={busy} onClick={create}>Create portal</Button>
           </div>
         ) : null}

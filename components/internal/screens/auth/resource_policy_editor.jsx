@@ -7,12 +7,11 @@
 
 import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
-import { EmptyState, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
@@ -105,7 +104,7 @@ export function ResourcePolicyEditor({ api }) {
   if (api.protocol !== "REST") return null;
 
   if (state.status === "loading") {
-    return <SectionCard><div className="flex justify-center py-6"><LogoLoading /></div></SectionCard>;
+    return <SectionCard><LoadingArea label="Loading resource policy" className="py-6" /></SectionCard>;
   }
   if (state.status === "error") {
     return <SectionCard><EmptyState icon={ShieldCheck} title="Resource policy unavailable" description={state.error} /></SectionCard>;

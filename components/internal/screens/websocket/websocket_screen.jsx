@@ -32,14 +32,16 @@ export function WebsocketScreen({ params = {} }) {
     <div className="space-y-4">
       <ScreenHeader title="WebSocket API" description="Routes, selection expressions and live connections." icon={Cable} />
       <SectionCard title="Route selection expression">
-        <Label>Expression (e.g. $request.body.action)</Label>
-        <Input value={expression} onChange={(event) => setExpression(event.target.value)} className="font-mono" />
-        <Label>Sample message</Label>
-        <Textarea value={sample} onChange={(event) => setSample(event.target.value)} rows={3} className="font-mono text-xs" />
-        <p className="text-sm text-muted-foreground">Selected route: <code>{preview}</code></p>
+        <div className="grid gap-2">
+          <Label htmlFor="ws-route-expression">Expression (e.g. $request.body.action)</Label>
+          <Input id="ws-route-expression" value={expression} onChange={(event) => setExpression(event.target.value)} className="font-mono" />
+          <Label htmlFor="ws-sample-message">Sample message</Label>
+          <Textarea id="ws-sample-message" value={sample} onChange={(event) => setSample(event.target.value)} rows={3} className="font-mono text-xs" />
+          <p className="text-sm text-muted-foreground">Selected route: <code>{preview}</code></p>
+        </div>
       </SectionCard>
       <SectionCard title="Live test console">
-        <p className="text-sm text-muted-foreground">
+        <p className="mb-3 text-sm text-muted-foreground">
           Connect from the browser to the deployed stage URL, send JSON frames and inspect replies.
           Use the stage page for the wss:// and @connections URLs.
         </p>

@@ -6,9 +6,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Database, Globe, MessageSquareWarning } from "lucide-react";
-import { EmptyState, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -94,7 +93,7 @@ export function ModelsPanel({ api }) {
     }
   };
 
-  if (state.status === "loading") return <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard>;
+  if (state.status === "loading") return <SectionCard><LoadingArea label="Loading models" className="py-10" /></SectionCard>;
   if (state.status === "error") {
     return <SectionCard><EmptyState icon={Database} title="Models unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard>;
   }
@@ -137,7 +136,7 @@ export function CorsPanel({ api }) {
     return () => { alive = false; };
   }, [project.id, apiRef]);
 
-  if (state.status === "loading") return <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard>;
+  if (state.status === "loading") return <SectionCard><LoadingArea label="Loading CORS" className="py-10" /></SectionCard>;
   if (state.status === "error") {
     return <SectionCard><EmptyState icon={Globe} title="CORS unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard>;
   }
@@ -245,7 +244,7 @@ export function GatewayResponsesPanel({ api }) {
     }
   };
 
-  if (state.status === "loading") return <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard>;
+  if (state.status === "loading") return <SectionCard><LoadingArea label="Loading gateway responses" className="py-10" /></SectionCard>;
   if (state.status === "error") {
     return <SectionCard><EmptyState icon={MessageSquareWarning} title="Gateway responses unavailable" description={state.error} action={<Button variant="outline" onClick={load}>Retry</Button>} /></SectionCard>;
   }

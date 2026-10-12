@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Gauge } from "lucide-react";
-import { EmptyState, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
+import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
+import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -113,14 +114,14 @@ export function StageThrottleTab({ api, stage }) {
     }
   };
 
-  if (state.status === "loading") return <SectionCard><div className="flex justify-center py-6"><LogoLoading /></div></SectionCard>;
+  if (state.status === "loading") return <LoadingArea panel label="Loading stage throttling" />;
   if (state.status === "error") return <SectionCard><EmptyState icon={Gauge} title="Throttling unavailable" description={state.error} action={<Button variant="outline" onClick={load}>Retry</Button>} /></SectionCard>;
   return <SectionCard title={`Throttling — ${stage.name}`} description="Stage defaults and per-method/route overrides. Values may not exceed the project throttle. Rate/burst 0 blocks all traffic.">
     <div className="grid gap-2">
-      <Label>Default ({api.protocol === "REST" ? '"*/*"' : "default route settings"}), JSON or null</Label>
-      <textarea className="min-h-16 w-full rounded-md border border-input bg-background p-2 font-mono text-xs" value={defaultText} onChange={(event) => setDefaultText(event.target.value)} spellCheck={false} />
-      <Label>Overrides ({api.protocol === "REST" ? '"/path/METHOD"' : "route keys"}), JSON object, ≤20</Label>
-      <textarea className="min-h-24 w-full rounded-md border border-input bg-background p-2 font-mono text-xs" value={throttlesText} onChange={(event) => setThrottlesText(event.target.value)} spellCheck={false} />
+      <Label htmlFor="s08-stage-default-throttle">Default ({api.protocol === "REST" ? '"*/*"' : "default route settings"}), JSON or null</Label>
+      <Textarea id="s08-stage-default-throttle" className="min-h-16 font-mono text-xs" value={defaultText} onChange={(event) => setDefaultText(event.target.value)} spellCheck={false} />
+      <Label htmlFor="s08-stage-throttle-overrides">Overrides ({api.protocol === "REST" ? '"/path/METHOD"' : "route keys"}), JSON object, ≤20</Label>
+      <Textarea id="s08-stage-throttle-overrides" className="min-h-24 font-mono text-xs" value={throttlesText} onChange={(event) => setThrottlesText(event.target.value)} spellCheck={false} />
       <div><Button size="sm" disabled={busy || !can("pods.stage.write")} onClick={save}>Save throttling</Button></div>
     </div>
   </SectionCard>;
@@ -137,9 +138,9 @@ export function ProjectThrottleCard({ settings, onSave, canSave, busy }) {
   return <SectionCard title="Project throttle" description="Account-level token bucket (AWS defaults 10000 rps / 5000 burst). Plan and stage throttles may not exceed it.">
     <div className="grid gap-2">
       <Label htmlFor="s08-proj-rate">Rate (requests/sec)</Label>
-      <input id="s08-proj-rate" className="rounded-md border border-input bg-background p-2 text-sm" value={rate} onChange={(event) => setRate(event.target.value)} inputMode="numeric" />
+      <Input id="s08-proj-rate" value={rate} onChange={(event) => setRate(event.target.value)} inputMode="numeric" />
       <Label htmlFor="s08-proj-burst">Burst</Label>
-      <input id="s08-proj-burst" className="rounded-md border border-input bg-background p-2 text-sm" value={burst} onChange={(event) => setBurst(event.target.value)} inputMode="numeric" />
+      <Input id="s08-proj-burst" value={burst} onChange={(event) => setBurst(event.target.value)} inputMode="numeric" />
       <div><Button size="sm" disabled={busy || !canSave} onClick={() => onSave({ throttleRate: Number(rate), throttleBurst: Number(burst) })}>Save throttle</Button></div>
     </div>
   </SectionCard>;

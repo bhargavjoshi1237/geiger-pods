@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { SectionCard } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
 import { Label } from "@geiger/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 
@@ -45,10 +46,13 @@ export function TemplateEditor({ contentType, value, onChange, evaluate, models 
         {models.length > 0 ? (
           <div>
             <Label htmlFor="template-model">Generate from model</Label>
-            <div className="flex gap-2">
-              <select id="template-model" className="flex-1 rounded border p-2 text-sm" defaultValue={models[0]?.name} data-testid="template-model-select">
-                {models.map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}
-              </select>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select defaultValue={models[0]?.name}>
+                <SelectTrigger id="template-model" className="w-auto min-w-40 flex-1" data-testid="template-model-select"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {models.map((model) => <SelectItem key={model.name} value={model.name}>{model.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
               <Button type="button" onClick={() => onChange?.(generateFromModel(models[0]))}>Insert scaffold</Button>
             </div>
           </div>

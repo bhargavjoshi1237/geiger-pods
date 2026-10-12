@@ -15,9 +15,9 @@ export default function FilterDropdown({ value, onValueChange, options, label })
   const current = options.find((option) => option.value === value);
   return <DropdownMenu>
     <DropdownMenuTrigger asChild>
-      <Button variant="outline" aria-label={label} className="h-9 rounded-lg border-border bg-surface-card px-3 text-xs font-medium text-foreground hover:bg-surface-subtle">
-        <span className="max-w-[120px] truncate">{current?.label ?? "Select"}</span>
-        <ChevronDown className="ml-1 size-3.5 text-text-secondary" />
+      <Button variant="outline" size="sm" aria-label={label} className="border-border bg-surface-card text-foreground hover:bg-surface-subtle">
+        <span className="max-w-30 truncate">{current?.label ?? "Select"}</span>
+        <ChevronDown className="size-3.5 text-text-secondary" />
       </Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="max-h-72 overflow-y-auto border-border bg-surface-subtle text-foreground">

@@ -96,9 +96,9 @@ const SORT_OPTIONS = [
 ];
 
 const HEALTH_META = {
-  healthy: { label: "Healthy", icon: CheckCircle2, className: "text-emerald-400" },
-  degraded: { label: "Degraded", icon: TrendingDown, className: "text-amber-400" },
-  failing: { label: "Failing", icon: AlertTriangle, className: "text-red-400" },
+  healthy: { label: "Healthy", icon: CheckCircle2, className: "text-emerald-600 dark:text-emerald-400" },
+  degraded: { label: "Degraded", icon: TrendingDown, className: "text-amber-600 dark:text-amber-400" },
+  failing: { label: "Failing", icon: AlertTriangle, className: "text-red-600 dark:text-red-400" },
   idle: { label: "No traffic", icon: CircleSlash, className: "text-text-secondary" },
 };
 
@@ -178,9 +178,9 @@ function ApiScopeSelect({ rows, selected, onChange }) {
   const toggle = (id) => onChange(selected.includes(id) ? selected.filter((value) => value !== id) : [...selected, id]);
   return <DropdownMenu>
     <DropdownMenuTrigger asChild>
-      <Button variant="outline" aria-label="Filter by API" disabled={!rows.length} className="h-9 gap-2 border-border bg-surface-card text-xs text-foreground hover:bg-surface-active">
+      <Button variant="outline" size="sm" aria-label="Filter by API" disabled={!rows.length} className="border-border bg-surface-card text-foreground hover:bg-surface-active">
         <Network className="size-4 text-muted-foreground" />
-        <span className="max-w-[120px] truncate">{label}</span>
+        <span className="max-w-30 truncate">{label}</span>
         <ChevronDown className="size-4 text-muted-foreground" />
       </Button>
     </DropdownMenuTrigger>
@@ -205,7 +205,7 @@ function OverviewStats({ stats }) {
             <span className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">{stat.label}</span>
             <div className="mt-1 flex flex-col items-start gap-1 sm:flex-row sm:items-end sm:gap-2">
               <RollingNumber value={stat.value} className="text-2xl font-bold leading-none text-foreground" />
-              {stat.delta ? <span className={cn("inline-flex items-center gap-0.5 text-xs font-medium sm:mb-0.5", stat.tone === "good" && "text-emerald-400", stat.tone === "bad" && "text-red-400", stat.tone === "neutral" && "text-text-secondary")}>
+              {stat.delta ? <span className={cn("inline-flex items-center gap-0.5 text-xs font-medium sm:mb-0.5", stat.tone === "good" && "text-emerald-600 dark:text-emerald-400", stat.tone === "bad" && "text-red-600 dark:text-red-400", stat.tone === "neutral" && "text-text-secondary")}>
                 <Arrow className="size-3" />{stat.delta}
               </span> : null}
             </div>
@@ -293,7 +293,7 @@ function TrafficMixWidget({ pending, rows }) {
   return <WidgetShell contentClassName="flex flex-col">
     <WidgetHeader title="Traffic by API" subtitle="Share of requests per API." action={<FilterDropdown label="Highlighted API" value={activeKey} onValueChange={setPicked} options={mix.map((item) => ({ value: item.key, label: item.label }))} />} />
     <div className="relative mt-4 flex min-h-0 w-full flex-1 items-center justify-center">
-      <ChartContainer config={config} className="mx-auto h-[220px] w-[220px]">
+      <ChartContainer config={config} className="mx-auto size-[220px] max-w-full">
         <PieChart>
           <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="key" />} />
           <Pie data={chartData} dataKey="value" nameKey="key" cx="50%" cy="50%" innerRadius={44} outerRadius={78} activeIndex={activeIndex} activeShape={{ outerRadius: 88 }} stroke={CARD} strokeWidth={2} />
@@ -428,7 +428,7 @@ function TopApisTable({ demo, pending, rows }) {
                 <TableCell className="text-right tabular-nums text-muted-foreground">{formatLatency(row.p90LatencyMs)}</TableCell>
                 <TableCell><span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap font-medium", meta.className)}><HealthIcon className="size-3.5" />{meta.label}</span></TableCell>
                 <TableCell className="text-right">
-                  <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:bg-surface-active hover:text-foreground">
+                  <Button asChild variant="ghost" size="icon-sm" className="text-muted-foreground hover:bg-surface-active hover:text-foreground">
                     <WorkspaceLink section={demo ? "apis" : `apis/${encodeURIComponent(row.ref)}`} aria-label={`Open ${row.name}`}><ArrowUpRight className="size-4" /></WorkspaceLink>
                   </Button>
                 </TableCell>
@@ -447,7 +447,7 @@ function AttentionCard({ demo, items }) {
     <WidgetHeader
       title="Needs Attention"
       subtitle="Alarms, unhealthy APIs and limits across this project."
-      action={<span className="shrink-0 rounded-md border border-border bg-surface-card px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{open} open</span>}
+      action={<Badge className="shrink-0">{open} open</Badge>}
     />
     <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {sorted.map((item) => {
@@ -459,7 +459,7 @@ function AttentionCard({ demo, items }) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="truncate text-sm font-semibold text-foreground">{item.label}</span>
-              <span className="shrink-0 rounded-md border border-border bg-surface-card px-1.5 py-0.5 text-[10px] font-medium text-text-secondary">{URGENCY_LABELS[item.urgency]}</span>
+              <Badge className="shrink-0 px-1.5 text-text-secondary">{URGENCY_LABELS[item.urgency]}</Badge>
             </div>
             <p className="mt-0.5 truncate text-xs text-text-secondary">{item.hint}</p>
           </div>

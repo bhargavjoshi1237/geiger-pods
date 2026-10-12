@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Package } from "lucide-react";
-import { EmptyState, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
-import { LogoLoading } from "@geiger/ui/logo-loading";
+import { Checkbox } from "@geiger/ui/checkbox";
+import { Label } from "@geiger/ui/label";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 
@@ -73,7 +74,7 @@ export function DeploymentsTab({ api, stages = [], onChanged }) {
   };
 
   if (state.status === "loading") {
-    return <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard>;
+    return <SectionCard><LoadingArea label="Loading deployments" /></SectionCard>;
   }
   if (state.status === "error") {
     return <SectionCard><EmptyState icon={Package} title="Deployments unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard>;
@@ -91,18 +92,19 @@ export function DeploymentsTab({ api, stages = [], onChanged }) {
             <span>{deployment.createdAt}</span>
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <label className="flex items-center gap-1 text-xs">
-            <input
-              type="checkbox"
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 pr-1">
+            <Checkbox
+              id={`compare-${deployment.id}`}
               checked={comparing.includes(deployment.id)}
-              onChange={() => setComparing((current) => {
+              onCheckedChange={() => setComparing((current) => {
                 const next = current.includes(deployment.id) ? current.filter((id) => id !== deployment.id) : [...current, deployment.id].slice(-2);
                 if (next.length === 2) compare(next[0], next[1]);
                 return next;
               })}
-            />Compare
-          </label>
+            />
+            <Label htmlFor={`compare-${deployment.id}`} className="text-xs font-normal">Compare</Label>
+          </div>
           {stages.slice(0, 3).map((stage) => <Button
             key={stage.name}
             variant="outline"

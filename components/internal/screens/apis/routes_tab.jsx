@@ -2,13 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Route as RouteIcon, Trash2 } from "lucide-react";
-import { EmptyState, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
@@ -100,7 +99,7 @@ export function RoutesTab({ api }) {
   };
 
   if (state.status === "loading") {
-    return <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard>;
+    return <SectionCard><LoadingArea label="Loading routes" className="py-10" /></SectionCard>;
   }
   if (state.status === "error") {
     return <SectionCard><EmptyState icon={RouteIcon} title="Routes unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard>;

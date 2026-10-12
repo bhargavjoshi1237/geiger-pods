@@ -6,12 +6,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LockKeyhole, ScrollText } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -106,10 +105,10 @@ export function LogsScreen() {
     <ScreenHeader
       title="Logs"
       description="Access-log search with live tail and per-request detail."
-      actions={<div className="flex gap-2">
+      actions={<>
         <Button variant={live ? "default" : "outline"} onClick={() => setLive((value) => !value)}>{live ? "Stop tail" : "Live tail"}</Button>
         <Button variant="outline" onClick={() => search()}>Search</Button>
-      </div>}
+      </>}
     />
     <SectionCard title="Search" description="Live tail polls every 2 s while enabled.">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -122,14 +121,14 @@ export function LogsScreen() {
         </div>)}
       </div>
     </SectionCard>
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <LoadingArea panel label="Loading logs" /> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={ScrollText} title="Logs unavailable" description={state.error} action={<Button variant="outline" onClick={() => search()}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState icon={ScrollText} title="No log lines yet" description="Lines appear here once the stage serves traffic with access logging enabled." /></SectionCard> : null}
     {state.status === "ready" && state.items.length > 0 ? <SectionCard title={`${state.items.length} lines`} description="Select a line for the access entry, execution log and trace waterfall.">
       <ul className="divide-y divide-border">
         {state.items.map((row) => <li key={`${row.request_id}-${row.ts}`} className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
           {statusBadge(row.status)}
-          <p className="min-w-0 flex-1 font-mono text-xs">{row.line}</p>
+          <p className="min-w-0 flex-1 break-all font-mono text-xs">{row.line}</p>
           <Button variant="outline" size="sm" onClick={() => openDetail(row.request_id)}>Details</Button>
         </li>)}
       </ul>
@@ -137,7 +136,7 @@ export function LogsScreen() {
     {detail ? <SectionCard
       title={`Request ${detail.requestId}`}
       description={detail.bodiesRedacted ? "Request/response bodies are redacted — viewing them needs pods.logs.data." : "Access line, execution log and trace waterfall."}
-      actions={<Button variant="outline" size="sm" onClick={() => setDetail(null)}>Close</Button>}
+      action={<Button variant="outline" size="sm" onClick={() => setDetail(null)}>Close</Button>}
     >
       <div className="space-y-4">
         <div>

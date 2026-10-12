@@ -8,11 +8,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Activity, LockKeyhole } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard, StatGrid } from "@geiger/ui/screen-kit";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -29,14 +28,6 @@ async function api(projectId, path) {
 function lastValue(series) {
   if (!series || series.length === 0) return null;
   return series[series.length - 1]?.value ?? null;
-}
-
-function StatCard({ label, value, hint }) {
-  return <div className="rounded-md border p-4">
-    <p className="text-xs text-muted-foreground">{label}</p>
-    <p className="mt-1 text-2xl font-semibold">{value}</p>
-    {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
-  </div>;
 }
 
 export function MonitoringOverview({ apiId: initialApiId = "", stage: initialStage = "" } = {}) {
@@ -137,11 +128,11 @@ export function MonitoringOverview({ apiId: initialApiId = "", stage: initialSta
     <ScreenHeader
       title="Monitoring"
       description="Request metrics from live gateway traffic. Test-invoke traffic is excluded."
-      actions={<div className="flex gap-2">
+      actions={<>
         <Button variant="outline" asChild><a href="logs">Logs</a></Button>
         <Button variant="outline" asChild><a href="alarms">Alarms</a></Button>
         <Button variant="outline" onClick={refresh}>Refresh</Button>
-      </div>}
+      </>}
     />
     <SectionCard title="Scope" description="Filter every chart by API and stage.">
       <div className="flex flex-wrap gap-4">
@@ -155,17 +146,17 @@ export function MonitoringOverview({ apiId: initialApiId = "", stage: initialSta
         </div>
       </div>
     </SectionCard>
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <LoadingArea panel label="Loading metrics" /> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={Activity} title="Metrics unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {empty ? <SectionCard><EmptyState icon={Activity} title="No traffic yet" description="Charts appear here once the gateway serves requests for this scope." /></SectionCard> : null}
     {state.status === "ready" && stats && stats.count > 0 ? <SectionCard title="Last hour" description="Summed from minute metrics; percentiles from merged histograms.">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Requests" value={stats.count} />
-        <StatCard label="4XX errors" value={stats.errors4xx} />
-        <StatCard label="5XX errors" value={stats.errors5xx} />
-        <StatCard label="Latency p50 / p90 / p99" value={`${fmtMs(stats.p50)} / ${fmtMs(stats.p90)} / ${fmtMs(stats.p99)}`} hint={`Integration p90 ${fmtMs(stats.integrationP90)}`} />
-        {stats.cacheHitRatio !== null ? <StatCard label="Cache hit ratio" value={`${(stats.cacheHitRatio * 100).toFixed(1)}%`} hint="REST only" /> : null}
-      </div>
+      <StatGrid columns={4} className="grid-cols-1 sm:grid-cols-2" stats={[
+        { label: "Requests", value: stats.count },
+        { label: "4XX errors", value: stats.errors4xx },
+        { label: "5XX errors", value: stats.errors5xx },
+        { label: "Latency p50 / p90 / p99", value: `${fmtMs(stats.p50)} / ${fmtMs(stats.p90)} / ${fmtMs(stats.p99)}`, hint: `Integration p90 ${fmtMs(stats.integrationP90)}` },
+        ...(stats.cacheHitRatio !== null ? [{ label: "Cache hit ratio", value: `${(stats.cacheHitRatio * 100).toFixed(1)}%`, hint: "REST only" }] : []),
+      ]} />
     </SectionCard> : null}
   </div>;
 }

@@ -7,13 +7,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Cable, Plus, PlugZap } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
+import { Checkbox } from "@geiger/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
@@ -103,9 +103,9 @@ function IntegrationForm({ protocol, initial, connectors, onSubmit, submitting }
     });
   }}>
     <div className="space-y-2">
-      <Label>Type</Label>
+      <Label htmlFor="integration-type">Type</Label>
       <Select value={type} onValueChange={setType}>
-        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectTrigger id="integration-type"><SelectValue /></SelectTrigger>
         <SelectContent>{TYPES.map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}</SelectContent>
       </Select>
     </div>
@@ -120,9 +120,9 @@ function IntegrationForm({ protocol, initial, connectors, onSubmit, submitting }
       <Input id="integration-timeout" type="range" min={50} max={max} step={50} value={timeoutMs} onChange={(event) => setTimeoutMs(event.target.value)} />
     </div>
     <div className="space-y-2">
-      <Label>Connection</Label>
+      <Label htmlFor="integration-connection">Connection</Label>
       <Select value={connectionType} onValueChange={setConnectionType}>
-        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectTrigger id="integration-connection"><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="INTERNET">INTERNET</SelectItem>
           <SelectItem value="CONNECTOR">CONNECTOR (private)</SelectItem>
@@ -130,24 +130,24 @@ function IntegrationForm({ protocol, initial, connectors, onSubmit, submitting }
       </Select>
     </div>
     {connectionType === "CONNECTOR" ? <div className="space-y-2">
-      <Label>Connector</Label>
+      <Label htmlFor="integration-connector">Connector</Label>
       <Select value={connectorId} onValueChange={setConnectorId}>
-        <SelectTrigger><SelectValue placeholder="Pick a connector" /></SelectTrigger>
+        <SelectTrigger id="integration-connector"><SelectValue placeholder="Pick a connector" /></SelectTrigger>
         <SelectContent>{connectors.map((entry) => <SelectItem key={entry.id} value={entry.id}>{entry.name} ({entry.status})</SelectItem>)}</SelectContent>
       </Select>
     </div> : null}
     <div className="space-y-2">
       <Label>Backend TLS</Label>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={insecureSkip} onChange={(event) => setInsecureSkip(event.target.checked)} />
-        Skip certificate chain validation (testing only)
-      </label>
-      <Input value={serverName} onChange={(event) => setServerName(event.target.value)} placeholder="SNI override (serverNameToVerify)" spellCheck={false} />
+      <div className="flex items-center gap-2">
+        <Checkbox id="integration-tls-insecure" checked={insecureSkip} onCheckedChange={(value) => setInsecureSkip(value === true)} />
+        <Label htmlFor="integration-tls-insecure" className="font-normal">Skip certificate chain validation (testing only)</Label>
+      </div>
+      <Input value={serverName} onChange={(event) => setServerName(event.target.value)} placeholder="SNI override (serverNameToVerify)" aria-label="SNI override (serverNameToVerify)" spellCheck={false} />
     </div>
     <div className="space-y-2">
-      <Label>Backend auth (vault-injected credential)</Label>
+      <Label htmlFor="integration-backend-auth">Backend auth (vault-injected credential)</Label>
       <Select value={authType} onValueChange={setAuthType}>
-        <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+        <SelectTrigger id="integration-backend-auth"><SelectValue placeholder="None" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="header">header</SelectItem>
           <SelectItem value="bearer">bearer</SelectItem>
@@ -172,9 +172,9 @@ function IntegrationForm({ protocol, initial, connectors, onSubmit, submitting }
       <Input id="integration-template-selection" value={templateSelectionExpression} onChange={(event) => setTemplateSelectionExpression(event.target.value)} placeholder="$default" spellCheck={false} className="font-mono" />
     </div> : null}
     {protocol === "REST" ? <div className="space-y-2">
-      <Label>Transfer mode</Label>
+      <Label htmlFor="integration-transfer-mode">Transfer mode</Label>
       <Select value={transferMode} onValueChange={setTransferMode}>
-        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectTrigger id="integration-transfer-mode"><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="BUFFERED">Buffered</SelectItem>
           <SelectItem value="STREAM">Stream (HTTP_PROXY/FUNCTION_PROXY only)</SelectItem>
@@ -182,9 +182,9 @@ function IntegrationForm({ protocol, initial, connectors, onSubmit, submitting }
       </Select>
       {transferMode === "STREAM" ? <p className="text-xs text-muted-foreground">STREAM is incompatible with stage caching for this method, response compression and response mapping templates — deploy fails naming the conflict.</p> : null}
       <Label htmlFor="integration-cache-keys">Cache key parameters (one per line)</Label>
-      <textarea
+      <Textarea
         id="integration-cache-keys"
-        className="min-h-16 w-full rounded-md border border-input bg-background p-2 font-mono text-xs"
+        className="min-h-16 font-mono text-xs"
         value={cacheKeysText}
         onChange={(event) => setCacheKeysText(event.target.value)}
         placeholder={"method.request.querystring.page\nmethod.request.header.Accept"}
@@ -260,7 +260,7 @@ export function IntegrationsTab({ apiId, protocol = "REST" }) {
       description="Backends for your routes: HTTP proxy, mock, functions, AWS services and private connectors."
       actions={<Button onClick={() => setDialog({ mode: "create" })}><Plus className="size-4" />New integration</Button>}
     />
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <SectionCard><LoadingArea label="Loading integrations" /></SectionCard> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={PlugZap} title="Integrations unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState icon={PlugZap} title="No integrations yet" description="Point your first route at a backend. HTTP proxy is the fastest start." action={<Button onClick={() => setDialog({ mode: "create" })}>New integration</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length > 0 ? <SectionCard title="Integrations" description={`${state.items.length} configured.`}>

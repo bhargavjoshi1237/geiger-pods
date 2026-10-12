@@ -2,13 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Globe, Network, Plus, Radio, Upload, Zap } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
@@ -85,11 +84,12 @@ function CreateApiDialog({ open, onOpenChange, onCreated }) {
           {PROTOCOLS.map((entry) => {
             const Icon = entry.icon;
             const selected = protocol === entry.value;
-            return <button
+            return <Button
               key={entry.value}
               type="button"
+              variant="outline"
               onClick={() => setProtocol(entry.value)}
-              className={`flex items-start gap-3 rounded-lg border p-3 text-left ${selected ? "border-primary" : "border-border"}`}
+              className={`h-auto w-full items-start justify-start gap-3 whitespace-normal p-3 text-left font-normal ${selected ? "border-primary" : ""}`}
               aria-pressed={selected}
             >
               <Icon className="mt-0.5 size-4 shrink-0" />
@@ -97,7 +97,7 @@ function CreateApiDialog({ open, onOpenChange, onCreated }) {
                 <span className="block text-sm font-medium">{entry.title}</span>
                 <span className="block text-xs text-muted-foreground">{entry.summary}</span>
               </span>
-            </button>;
+            </Button>;
           })}
         </div>
         <div className="space-y-2">
@@ -151,12 +151,12 @@ export function ApiListScreen() {
     <ScreenHeader
       title="APIs"
       description="REST, HTTP and WebSocket APIs. Routes and resources are the draft; stages serve immutable deployments."
-      actions={<div className="flex gap-2">
+      actions={<div className="flex flex-wrap gap-2">
         <Button variant="outline" disabled title="Import OpenAPI arrives in S13"><Upload className="size-4" />Import OpenAPI</Button>
         {writable ? <Button onClick={() => setCreating(true)}><Plus className="size-4" />New API</Button> : null}
       </div>}
     />
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <SectionCard><LoadingArea label="Loading APIs" className="py-10" /></SectionCard> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={Network} title="APIs unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState
       icon={Network}

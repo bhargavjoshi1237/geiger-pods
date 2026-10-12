@@ -9,13 +9,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Copy, KeyRound, LockKeyhole, Plus } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
-import { LogoLoading } from "@geiger/ui/logo-loading";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
@@ -63,14 +62,14 @@ function OnceSecret({ created }) {
   return <SectionCard title="Copy the secret access key now" description="It is shown once and never returned by GET — like an AWS secret key.">
     <div className="flex items-center gap-2">
       <Input readOnly value={created.secretAccessKey} spellCheck={false} onFocus={(event) => event.target.select()} className="font-mono" />
-      <Button variant="outline" size="sm" onClick={() => {
+      <Button variant="outline" onClick={() => {
         navigator.clipboard?.writeText(created.secretAccessKey).then(
           () => toast.success("Secret copied."),
           () => toast.error("Copy failed."),
         );
       }}><Copy className="size-4" />Copy</Button>
     </div>
-    <div className="flex gap-2 pt-3">
+    <div className="flex flex-wrap gap-2 pt-3">
       <Button variant={snippet === "js" ? "default" : "outline"} size="sm" onClick={() => setSnippet("js")}>@smithy/signature-v4</Button>
       <Button variant={snippet === "py" ? "default" : "outline"} size="sm" onClick={() => setSnippet("py")}>Python botocore</Button>
       <Button
@@ -164,7 +163,7 @@ function Policies({ credential }) {
 
   return <div className="space-y-3 border-t border-border pt-3">
     <p className="text-xs font-medium">Identity policies ({state.items.length}/10) — explicit Deny beats Allow; otherwise implicit deny</p>
-    {state.status === "loading" ? <div className="flex justify-center py-4"><LogoLoading /></div> : null}
+    {state.status === "loading" ? <LoadingArea label="Loading policies" size={32} className="py-4" /> : null}
     {state.status === "error" ? <p className="text-xs text-destructive">{state.error} <Button variant="outline" size="sm" onClick={refresh}>Retry</Button></p> : null}
     {state.status === "ready" && state.items.length > 0 ? <ul className="space-y-2">
       {state.items.map((policy) => <li key={policy.id} className="flex flex-wrap items-center gap-2 text-xs">
@@ -177,7 +176,7 @@ function Policies({ credential }) {
     {writable ? <div className="grid gap-2">
       <div className="flex gap-2">
         <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Policy name" aria-label="Policy name" />
-        <Button variant="outline" size="sm" disabled={busy} onClick={attach}>Attach policy</Button>
+        <Button variant="outline" disabled={busy} onClick={attach}>Attach policy</Button>
       </div>
       <Textarea rows={6} value={text} onChange={(event) => setText(event.target.value)} spellCheck={false} className="font-mono text-xs" aria-label="Policy document (JSON)" />
     </div> : null}
@@ -259,7 +258,7 @@ export function SigningCredentialsScreen() {
       actions={writable ? <Button onClick={() => { setCreated(null); setCreating(true); }}><Plus className="size-4" />New credential</Button> : null}
     />
     {created ? <OnceSecret created={created} /> : null}
-    {state.status === "loading" ? <SectionCard><div className="flex justify-center py-10"><LogoLoading /></div></SectionCard> : null}
+    {state.status === "loading" ? <SectionCard><LoadingArea label="Loading signing credentials" className="py-10" /></SectionCard> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={KeyRound} title="Credentials unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState icon={KeyRound} title="No signing credentials" description="Create one, copy the secret once, and sign requests with any AWS SigV4 signer." action={writable ? <Button onClick={() => setCreating(true)}>New credential</Button> : undefined} /></SectionCard> : null}
     {state.status === "ready" && state.items.length > 0 ? <div className="space-y-4">
