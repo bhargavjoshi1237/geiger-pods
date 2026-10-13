@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { useSession } from "./session-context";
 import { createClient } from "@/lib/supabase/client";
 import { listAccessibleProjects } from "@/lib/supabase/projects";
@@ -12,6 +12,7 @@ const ProjectContext = createContext(null);
 function UserProjects({ children }) {
   const { user, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
   const { projectId = null } = useParams();
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState({ projects: [], loading: true, error: null });
@@ -28,6 +29,15 @@ function UserProjects({ children }) {
   }, [user?.id, status, attempt]);
 
   const project = state.projects.find((p) => p.id === projectId) ?? null;
+  // The suite dashboard links Pods with projects.pods_project_id; Pods keys
+  // everything off projects.id, so swap the alias for the canonical id.
+  const alias = project ? null : state.projects.find((p) => p.podsProjectId && p.podsProjectId === projectId) ?? null;
+  useEffect(() => {
+    if (!alias) return;
+    const prefix = `/project/${encodeURIComponent(projectId)}`;
+    const rest = pathname?.startsWith(prefix) ? pathname.slice(prefix.length) : "/overview";
+    router.replace(`/project/${encodeURIComponent(alias.id)}${rest || "/overview"}`);
+  }, [alias, projectId, pathname, router]);
   useEffect(() => {
     if (project) {
       try { localStorage.setItem(LAST_PROJECT_KEY, project.id); } catch { /* Storage is optional. */ }
