@@ -45,3 +45,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Seed output (one-time API key values, tokens)
+scripts/seed-anilist/output/
