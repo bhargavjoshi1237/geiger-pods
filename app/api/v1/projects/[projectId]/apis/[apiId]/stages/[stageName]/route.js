@@ -35,5 +35,7 @@ export const DELETE = route(
       stageName: params.stageName,
       requestId,
     }),
-  { permission: "pods.stage.delete" },
+  // Stages and deployments have no delete policy for `authenticated`; the
+  // adapter deletes with the service role after this permission check.
+  { permission: "pods.stage.delete", needsService: true },
 );

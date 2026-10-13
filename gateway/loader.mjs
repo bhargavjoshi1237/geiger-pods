@@ -64,6 +64,41 @@ export function stageObservabilityFromRow(stage) {
 }
 
 /**
+ * IP-set and regex-set ids referenced anywhere in a web ACL's rules
+ * (including nested And/Or/Not and rate-based scope-down statements).
+ *
+ * @param {Array<object>} rules
+ * @returns {{ ip: Array<string>, regex: Array<string> }}
+ */
+export function referencedSetIds(rules) {
+  const ip = new Set();
+  const regex = new Set();
+  const walk = (statement) => {
+    if (!statement || typeof statement !== "object") return;
+    if (statement.ipSetId) ip.add(String(statement.ipSetId));
+    if (statement.regexSetId) regex.add(String(statement.regexSetId));
+    for (const child of statement.statements ?? []) walk(child);
+    walk(statement.statement);
+    walk(statement.scopeDownStatement);
+  };
+  for (const rule of rules ?? []) walk(rule?.statement);
+  return { ip: [...ip], regex: [...regex] };
+}
+
+/**
+ * Overlays a stage's web ACL onto an artifact's edge snapshot (the waf phase
+ * reads `artifact.edge.waf`). Without a stage ACL the artifact is unchanged.
+ *
+ * @param {object} artifact
+ * @param {object|null} waf
+ * @returns {object}
+ */
+export function withStageWaf(artifact, waf) {
+  if (!waf || !artifact) return artifact;
+  return { ...artifact, edge: { ...(artifact.edge ?? {}), waf } };
+}
+
+/**
  * Normalizes a gateway domain for host matching (lowercase, no port).
  *
  * @param {string} host
@@ -395,6 +430,47 @@ export function createSupabaseLoader({ supabase, kv = null, domain = null, pathR
     };
   }
 
+  /**
+   * S11: the stage's web ACL (+ the IP/regex sets its rules reference),
+   * shaped like `artifact.edge.waf` for the waf phase. ACLs attach to a
+   * stage — one deployment can serve several stages — and take effect
+   * without a redeploy (AWS parity), so they resolve with the stage pointer
+   * and share its 5 s TTL. Best-effort: a store error means "no ACL".
+   *
+   * @param {object} api - `apis` row (`id`).
+   * @param {string} stageName
+   * @returns {Promise<object|null>}
+   */
+  async function getStageWaf(api, stageName) {
+    try {
+      const store = supabase.schema("pods");
+      const { data: association } = await store.from("web_acl_associations")
+        .select("web_acl_id")
+        .eq("api_id", api.id)
+        .eq("stage_name", stageName)
+        .maybeSingle();
+      if (!association) return null;
+      const { data: acl } = await store.from("web_acls")
+        .select("id, project_id, name, default_action, rules, custom_responses")
+        .eq("id", association.web_acl_id)
+        .maybeSingle();
+      if (!acl) return null;
+      const refs = referencedSetIds(acl.rules ?? []);
+      const [ipRows, regexRows] = await Promise.all([
+        refs.ip.length ? store.from("ip_sets").select("id, ip_version, addresses").in("id", refs.ip) : { data: [] },
+        refs.regex.length ? store.from("regex_sets").select("id, patterns").in("id", refs.regex) : { data: [] },
+      ]);
+      return {
+        webAclArn: `arn:pods:wafv2:${acl.project_id}:webacl/${acl.name}/${acl.id}`,
+        acl: { name: acl.name, defaultAction: acl.default_action, rules: acl.rules ?? [], customResponses: acl.custom_responses ?? {} },
+        ipSets: Object.fromEntries((ipRows.data ?? []).map((row) => [row.id, { ipVersion: row.ip_version, addresses: row.addresses ?? [] }])),
+        regexSets: Object.fromEntries((regexRows.data ?? []).map((row) => [row.id, { patterns: row.patterns ?? [] }])),
+      };
+    } catch {
+      return null;
+    }
+  }
+
   async function getDeployment(id) {
     if (artifacts.has(id)) {
       touchLru(id);
@@ -598,21 +674,32 @@ export function createSupabaseLoader({ supabase, kv = null, domain = null, pathR
     const cached = pointerKey ? stagePointers.get(pointerKey) : null;
     if (cached && cached.expiresAt > now()) {
       const artifact = await getDeployment(cached.deploymentId);
+      // The cached pointer carries the stage's mutable settings too, so a
+      // warm hit behaves exactly like the fresh read below.
+      const extras = cached.extras ?? {};
+      const canaryArtifact = extras.canary ? await getDeployment(extras.canary.deploymentId).catch(() => null) : null;
       return {
         apiPublicId,
         stage: first,
-        artifact: { ...artifact, stage: first, stageVariables: { ...(cached.variables ?? {}) } },
+        artifact: withStageWaf({ ...artifact, stage: first, stageVariables: { ...(cached.variables ?? {}) } }, extras.waf),
         stageVariables: cached.variables ?? {},
         basePathStripped: `/${segments.slice(1).join("/")}` || "/",
         deploymentId: cached.deploymentId,
+        canary: canaryArtifact ? extras.canary : null,
+        canaryArtifact: canaryArtifact ? withStageWaf(canaryArtifact, extras.waf) : null,
+        stageCache: extras.stageCache ?? null,
+        stageObservability: extras.stageObservability ?? null,
+        agentTools: extras.agentTools ?? null,
       };
     }
     // Fresh read (or TTL expired).
     if (first) {
       const stage = await getStage(api.id, first).catch(() => null);
       if (stage?.deployment_id) {
-        stagePointers.set(pointerKey, { deploymentId: stage.deployment_id, variables: stage.variables ?? {}, expiresAt: now() + STAGE_TTL_MS });
+        const pointer = { deploymentId: stage.deployment_id, variables: stage.variables ?? {}, expiresAt: now() + STAGE_TTL_MS, extras: {} };
+        stagePointers.set(pointerKey, pointer);
         const artifact = await getDeployment(stage.deployment_id);
+        const waf = await getStageWaf(api, first);
         // S09: canary deployment artifact + stage cache snapshot (best-effort).
         let canary = null;
         let canaryArtifact = null;
@@ -635,20 +722,27 @@ export function createSupabaseLoader({ supabase, kv = null, domain = null, pathR
           canary = null;
           canaryArtifact = null;
         }
-        return {
-          apiPublicId,
-          stage: first,
-          artifact: { ...artifact, stage: first, stageVariables: { ...(stage.variables ?? {}) } },
-          stageVariables: stage.variables ?? {},
-          basePathStripped: `/${segments.slice(1).join("/")}` || "/",
-          deploymentId: stage.deployment_id,
+        pointer.extras = {
           canary,
-          canaryArtifact,
           stageCache: stageCacheFromRow(stage),
           // F50: stage observability settings from the stage row.
           stageObservability: stageObservabilityFromRow(stage),
           // S13E: the MCP agent-tools opt-in travels with the stage row.
           agentTools: stage.agent_tools ?? null,
+          waf,
+        };
+        return {
+          apiPublicId,
+          stage: first,
+          artifact: withStageWaf({ ...artifact, stage: first, stageVariables: { ...(stage.variables ?? {}) } }, waf),
+          stageVariables: stage.variables ?? {},
+          basePathStripped: `/${segments.slice(1).join("/")}` || "/",
+          deploymentId: stage.deployment_id,
+          canary,
+          canaryArtifact: canaryArtifact ? withStageWaf(canaryArtifact, waf) : null,
+          stageCache: pointer.extras.stageCache,
+          stageObservability: pointer.extras.stageObservability,
+          agentTools: pointer.extras.agentTools,
         };
       }
     }
@@ -667,10 +761,11 @@ export function createSupabaseLoader({ supabase, kv = null, domain = null, pathR
         }
         throw new Error("fetch failed: store outage");
       });
+      const waf = await getStageWaf(api, "$default");
       return {
         apiPublicId,
         stage: "$default",
-        artifact: { ...artifact, stage: "$default", stageVariables: { ...(fallback.variables ?? {}) } },
+        artifact: withStageWaf({ ...artifact, stage: "$default", stageVariables: { ...(fallback.variables ?? {}) } }, waf),
         stageVariables: fallback.variables ?? {},
         basePathStripped: remainder || "/",
         deploymentId: fallback.deployment_id,
