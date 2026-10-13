@@ -1,19 +1,19 @@
 "use client";
 
-// Method/route auth picker (S07 §8). Mounted on the S03 method panel
-// (REST methods) and the routes tab (HTTP/WebSocket routes): type,
-// authorizer, scopes and API-key-required. Persists through the existing
-// method/route PATCH endpoints; capability gating hides JWT on WebSocket and
-// the key toggle where the control plane rejects it (HTTP routes).
+// Method/route auth picker. Mounted on the REST method view and the routes
+// tab (HTTP/WebSocket routes): type, authorizer, scopes and API-key-required.
+// Persists through the method/route PATCH endpoints; capability gating hides
+// JWT on WebSocket and the key toggle where the control plane rejects it
+// (HTTP routes).
 
 import { useEffect, useId, useState } from "react";
-import { ShieldCheck } from "lucide-react";
-import { EmptyState, LoadingArea, SectionCard } from "@geiger/ui/screen-kit";
+import { Loader2 } from "lucide-react";
+import { Field, LoadingArea, SectionCard } from "@/components/internal/shared/screen_kit";
 import { Button } from "@geiger/ui/button";
-import { Checkbox } from "@geiger/ui/checkbox";
+import { DialogFooter } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
-import { Label } from "@geiger/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
+import { Switch } from "@geiger/ui/switch";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
@@ -21,6 +21,11 @@ import { fetchApis } from "../apis/api_list";
 import { authorizerTypesFor } from "@/lib/workspace/auth-ui.mjs";
 
 const TYPES = ["NONE", "SIGNED", "JWT", "CUSTOM"];
+
+const PRIMARY = "bg-primary text-primary-foreground hover:bg-primary/90";
+const SECONDARY = "border-border bg-transparent text-muted-foreground hover:bg-surface-active hover:text-foreground";
+
+const TYPE_LABEL = { NONE: "None (open)", SIGNED: "Signed requests (SigV4)", JWT: "JWT", CUSTOM: "Custom authorizer" };
 
 /**
  * Loads the API's authorizers for the picker dropdown.
@@ -48,33 +53,38 @@ function useAuthForm(target) {
 function AuthFields({ form, authorizers, protocol, keyAllowed, disabled }) {
   const creatable = authorizerTypesFor(protocol);
   const visible = authorizers.filter((entry) => creatable.includes(entry.type));
-  const keyId = useId();
-  return <div className="grid gap-3">
-    <div className="space-y-2">
-      <Label>Authorization type</Label>
-      <Select value={form.type} onValueChange={form.setType} disabled={disabled}>
-        <SelectTrigger><SelectValue /></SelectTrigger>
-        <SelectContent>
-          {TYPES.filter((entry) => entry !== "JWT" || creatable.includes("JWT")).map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}
-        </SelectContent>
-      </Select>
-      {form.type === "SIGNED" ? <p className="text-xs text-muted-foreground">SigV4-signed requests with a project signing credential (IAM equivalent).</p> : null}
+  const baseId = useId();
+  const typeId = `${baseId}-type`;
+  const authorizerId = `${baseId}-authorizer`;
+  const scopesId = `${baseId}-scopes`;
+  const keyId = `${baseId}-key`;
+  return <div className="space-y-4">
+    <div className="grid gap-4 sm:grid-cols-2">
+      <Field label="Authorization type" htmlFor={typeId} hint={form.type === "SIGNED" ? "Requests must be SigV4-signed with a project signing credential." : undefined}>
+        <Select value={form.type} onValueChange={form.setType} disabled={disabled}>
+          <SelectTrigger id={typeId} className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {TYPES.filter((entry) => entry !== "JWT" || creatable.includes("JWT")).map((entry) => <SelectItem key={entry} value={entry}>{TYPE_LABEL[entry] ?? entry}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </Field>
+      {(form.type === "JWT" || form.type === "CUSTOM") ? <Field label="Authorizer" htmlFor={authorizerId} hint={visible.length === 0 ? "Create one in Authorizers first." : undefined}>
+        <Select value={form.authorizerId} onValueChange={form.setAuthorizerId} disabled={disabled}>
+          <SelectTrigger id={authorizerId} className="w-full"><SelectValue placeholder={visible.length === 0 ? "No authorizers yet" : "Pick an authorizer"} /></SelectTrigger>
+          <SelectContent>{visible.map((entry) => <SelectItem key={entry.id} value={entry.id}>{entry.name} ({entry.type})</SelectItem>)}</SelectContent>
+        </Select>
+      </Field> : null}
     </div>
-    {(form.type === "JWT" || form.type === "CUSTOM") ? <div className="space-y-2">
-      <Label>Authorizer</Label>
-      <Select value={form.authorizerId} onValueChange={form.setAuthorizerId} disabled={disabled}>
-        <SelectTrigger><SelectValue placeholder={visible.length === 0 ? "No authorizers yet — create one on the Authorizers tab" : "Pick an authorizer"} /></SelectTrigger>
-        <SelectContent>{visible.map((entry) => <SelectItem key={entry.id} value={entry.id}>{entry.name} ({entry.type})</SelectItem>)}</SelectContent>
-      </Select>
-    </div> : null}
-    {form.type === "JWT" ? <div className="space-y-2">
-      <Label htmlFor="auth-scopes">Scopes (space-separated, at least one must match)</Label>
-      <Input id="auth-scopes" value={form.scopesText} onChange={(event) => form.setScopesText(event.target.value)} placeholder="read:pets write:pets" disabled={disabled} spellCheck={false} />
-    </div> : null}
-    {keyAllowed ? <div className="flex items-center gap-2">
-      <Checkbox id={keyId} checked={form.apiKeyRequired} onCheckedChange={(checked) => form.setApiKeyRequired(checked === true)} disabled={disabled} />
-      <Label htmlFor={keyId} className="font-normal">API key required</Label>
-    </div> : <p className="text-xs text-muted-foreground">API keys are enforced on REST methods and WebSocket routes only.</p>}
+    {form.type === "JWT" ? <Field label="Scopes" hint="Space separated. The token must carry at least one of them." htmlFor={scopesId}>
+      <Input id={scopesId} value={form.scopesText} onChange={(event) => form.setScopesText(event.target.value)} placeholder="read:pets write:pets" disabled={disabled} spellCheck={false} className="font-mono" />
+    </Field> : null}
+    {keyAllowed ? <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
+      <div className="min-w-0">
+        <label htmlFor={keyId} className="text-sm font-medium text-foreground">API key required</label>
+        <p className="text-xs text-text-secondary">Callers must also send a valid API key.</p>
+      </div>
+      <Switch id={keyId} checked={form.apiKeyRequired} onCheckedChange={(checked) => form.setApiKeyRequired(checked === true)} disabled={disabled} />
+    </div> : <p className="border-t border-border pt-4 text-xs text-text-secondary">API keys are enforced on REST methods and WebSocket routes only.</p>}
   </div>;
 }
 
@@ -101,7 +111,7 @@ export function MethodAuthPicker({ api, resourceId, method, onSaved }) {
     return () => { alive = false; };
   }, [project.id, apiRef]);
 
-  if (loading) return <SectionCard><LoadingArea label="Loading authorizers" className="py-6" /></SectionCard>;
+  if (loading) return <LoadingArea panel label="Loading authorizers" />;
 
   const save = async () => {
     const scopes = form.scopesText.split(/\s+/).map((scope) => scope.trim()).filter(Boolean);
@@ -130,18 +140,25 @@ export function MethodAuthPicker({ api, resourceId, method, onSaved }) {
     }
   };
 
-  return <SectionCard title="Authorization" description="Type, authorizer, scopes and API-key requirement for this method.">
-    <AuthFields form={form} authorizers={authorizers} protocol={api.protocol} keyAllowed disabled={!writable || busy} />
-    {writable ? <div className="pt-3"><Button size="sm" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save authorization"}</Button></div> : <p className="pt-3 text-xs text-muted-foreground">Read-only: your team access does not include route changes.</p>}
+  return <SectionCard
+    bare
+    title="Authorization"
+    description="Who may call this method: authorization type, authorizer, scopes and API key."
+    action={writable ? <Button size="sm" className={PRIMARY} disabled={busy} onClick={save}>{busy ? "Saving…" : "Save Authorization"}</Button> : null}
+  >
+    <div className="rounded-xl border border-border bg-surface-card p-4">
+      <AuthFields form={form} authorizers={authorizers} protocol={api.protocol} keyAllowed disabled={!writable || busy} />
+    </div>
+    {writable ? null : <p className="pt-3 text-xs text-text-secondary">Read-only: your team access does not include route changes.</p>}
   </SectionCard>;
 }
 
 /**
- * Auth picker for one HTTP/WebSocket route. Saves via PATCH
- * `.../routes/:routeId`. The key toggle is hidden because the control plane
- * rejects `apiKeyRequired` on non-WebSocket routes.
+ * Auth picker for one HTTP/WebSocket route, rendered as a dialog body. Saves
+ * via PATCH `.../routes/:routeId`. The key toggle is hidden because the
+ * control plane rejects `apiKeyRequired` on non-WebSocket routes.
  */
-export function RouteAuthPicker({ api, route, onSaved }) {
+export function RouteAuthPicker({ api, route, onSaved, onCancel }) {
   const { project } = useProject();
   const { can } = useRbac();
   const apiRef = api.publicId ?? api.id;
@@ -190,9 +207,12 @@ export function RouteAuthPicker({ api, route, onSaved }) {
     }
   };
 
-  return <div className="space-y-3 border-t border-border pt-3">
-    <p className="flex items-center gap-2 text-xs font-medium"><ShieldCheck className="size-4" />Authorization — {route.routeKey}</p>
+  return <div className="space-y-5">
     <AuthFields form={form} authorizers={authorizers} protocol={api.protocol} keyAllowed={keyAllowed} disabled={!writable || busy} />
-    {writable ? <Button variant="outline" size="sm" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save authorization"}</Button> : <EmptyState icon={ShieldCheck} title="Read-only" description="Your team access does not include route changes." />}
+    {writable ? null : <p className="text-xs text-text-secondary">Read-only: your team access does not include route changes.</p>}
+    <DialogFooter>
+      {onCancel ? <Button type="button" variant="outline" className={SECONDARY} onClick={onCancel}>{writable ? "Cancel" : "Close"}</Button> : null}
+      {writable ? <Button className={PRIMARY} disabled={busy} onClick={save}>{busy ? <Loader2 className="size-4 animate-spin" /> : null}Save Authorization</Button> : null}
+    </DialogFooter>
   </div>;
 }

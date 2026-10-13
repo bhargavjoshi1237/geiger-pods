@@ -3,7 +3,6 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { resolveSection } from "@/lib/workspace/model.mjs";
 import { resolveScreen } from "@/lib/workspace/screens.mjs";
 
 // Where the workspace is and how it moves: the URL under /project, or local state in the landing playground.
@@ -14,12 +13,16 @@ const sectionHref = (projectId, section) => `/project/${encodeURIComponent(proje
 export function RouteWorkspaceNav({ children }) {
   const { projectId, rest } = useParams();
   const router = useRouter();
-  const section = resolveSection(rest);
+  // Nested paths (apis/:id/:tab, monitoring/logs…) still belong to a section
+  // and a screen, so the sidebar keeps the right destination lit.
+  const match = resolveScreen(Array.isArray(rest) ? rest : rest ? [rest] : []);
+  const section = match?.section ?? null;
+  const screen = match?.screen ?? null;
   const value = useMemo(() => ({
-    memory: false, projectId, section,
+    memory: false, projectId, section, screen,
     hrefFor: (slug) => sectionHref(projectId, slug),
-    navigate: (slug) => router.push(sectionHref(projectId, slug)),
-  }), [projectId, section, router]);
+    navigate: (slug) => router.push(sectionHref(projectId, slug), { scroll: false }),
+  }), [projectId, section, screen, router]);
   return <WorkspaceNavContext.Provider value={value}>{children}</WorkspaceNavContext.Provider>;
 }
 
@@ -37,12 +40,14 @@ export function MemoryWorkspaceNav({ projectId, initialSection = "overview", chi
     const next = pathSegments(slug);
     setRest(next.length === 1 && next[0] === "overview" ? [] : next);
   }, []);
-  const section = resolveScreen(rest)?.section ?? null;
+  const match = resolveScreen(rest);
+  const section = match?.section ?? null;
+  const screen = match?.screen ?? null;
   const value = useMemo(() => ({
-    memory: true, projectId, section, rest,
+    memory: true, projectId, section, screen, rest,
     hrefFor: (slug) => sectionHref(projectId, slug),
     navigate,
-  }), [projectId, section, rest, navigate]);
+  }), [projectId, section, screen, rest, navigate]);
   return <WorkspaceNavContext.Provider value={value}>{children}</WorkspaceNavContext.Provider>;
 }
 

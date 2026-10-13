@@ -23,7 +23,8 @@ test("C1: workspace routes map every delivered screen (S04–S10, S14, S07 crede
   assert.deepEqual(screens.resolveScreen(["monitoring", "alarms"]), { section: "monitoring", screen: "alarms", params: {} });
   assert.deepEqual(screens.resolveScreen(["access", "credentials"]), { section: "settings", screen: "credentials", params: {} });
   assert.deepEqual(screens.resolveScreen(["settings", "tokens"]), { section: "settings", screen: "tokens", params: {} });
-  assert.deepEqual(screens.resolveScreen(["settings", "exports"]), { section: "settings", screen: "exports", params: {} });
+  assert.deepEqual(screens.resolveScreen(["settings", "exports"]), { section: "monitoring", screen: "exports", params: {} });
+  assert.deepEqual(screens.resolveScreen(["monitoring", "exports"]), { section: "monitoring", screen: "exports", params: {} });
   assert.deepEqual(screens.resolveScreen(["settings", "stacks"]), { section: "settings", screen: "stacks", params: {} });
   assert.deepEqual(screens.resolveScreen(["audit"]), { section: "audit", screen: "auditLog", params: {} });
   // Pre-existing routes are untouched.

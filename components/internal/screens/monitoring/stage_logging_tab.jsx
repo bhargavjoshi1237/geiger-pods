@@ -1,21 +1,36 @@
 "use client";
 
-// Stage → Logs & tracing sub-tab (S10 §9): access-log toggle and format
-// presets/editor with live preview against a sample context, destinations,
-// execution-log level, data trace (with a warning), detailed metrics and the
-// tracing toggle.
+// Stage → Logs & tracing sub-tab: access-log toggle and format presets with a
+// live preview against a sample context, destinations, execution-log level,
+// data trace, detailed metrics and the tracing toggle. Rendered inside the
+// API editor's stage panel, so it has no screen header of its own.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { LockKeyhole } from "lucide-react";
-import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { Activity, FileText, Loader2, LockKeyhole, Microscope, ScrollText, Waypoints } from "lucide-react";
 import { Button } from "@geiger/ui/button";
-import { Checkbox } from "@geiger/ui/checkbox";
 import { Input } from "@geiger/ui/input";
-import { Label } from "@geiger/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
+import { Switch } from "@geiger/ui/switch";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
+import { EmptyState, Field, LoadingArea, SectionCard, SettingRow, SettingsList } from "@/components/internal/shared/screen_kit";
+import { WorkspaceLink } from "@/context/workspace-nav-context";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
+
+const PRIMARY = "bg-primary text-primary-foreground hover:bg-primary/90";
+const SECONDARY = "border-border bg-transparent text-muted-foreground hover:bg-surface-active hover:text-foreground";
+
+const LOG_LEVELS = [
+  { value: "OFF", label: "Off" },
+  { value: "ERROR", label: "Errors only" },
+  { value: "INFO", label: "Info" },
+];
+
+const PRESETS = [
+  ["CLF", "$context.identity.sourceIp $context.identity.caller $context.identity.user [$context.requestTime] \"$context.httpMethod $context.resourcePath $context.protocol\" $context.status $context.responseLength $context.requestId"],
+  ["JSON", "{ \"requestId\":\"$context.requestId\", \"ip\": \"$context.identity.sourceIp\", \"caller\":\"$context.identity.caller\", \"user\":\"$context.identity.user\",\"requestTime\":\"$context.requestTime\", \"httpMethod\":\"$context.httpMethod\",\"resourcePath\":\"$context.resourcePath\", \"status\":\"$context.status\",\"protocol\":\"$context.protocol\", \"responseLength\":\"$context.responseLength\" }"],
+];
 
 const SAMPLE = {
   "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
@@ -45,6 +60,13 @@ function previewFormat(format) {
   return out;
 }
 
+async function getLogging(path) {
+  const response = await fetch(path);
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(data?.error?.message ?? `Request failed (${response.status}).`);
+  return data;
+}
+
 export function StageLoggingTab({ apiId, stageName }) {
   const { project } = useProject();
   const { can } = useRbac();
@@ -58,50 +80,47 @@ export function StageLoggingTab({ apiId, stageName }) {
   const [destinations, setDestinations] = useState("pods");
   const [busy, setBusy] = useState(false);
   const writable = can("pods.stage.write");
+  const allowed = can("pods.monitoring.view");
 
   const path = useMemo(
     () => `/api/v1/projects/${encodeURIComponent(project.id)}/apis/${encodeURIComponent(apiId)}/stages/${encodeURIComponent(stageName)}/logging`,
     [project.id, apiId, stageName],
   );
 
+  const apply = useCallback((data) => {
+    const defaults = data.methodSettings?.default ?? {};
+    setState({ status: "ready", settings: data, error: null });
+    setEnabled(Boolean(data.accessLog?.enabled));
+    setFormat(data.accessLog?.format ?? "");
+    setLevel(defaults.loggingLevel ?? "OFF");
+    setDataTrace(Boolean(defaults.dataTraceEnabled));
+    // Show what's stored so a save doesn't silently reset sinks or metrics.
+    setDestinations((data.accessLog?.destinations ?? ["pods"]).join(", "));
+    setDetailed(Boolean(defaults.metricsEnabled ?? defaults.detailedMetricsEnabled));
+    setTracing(Boolean(data.tracingEnabled));
+  }, []);
+
   const refresh = useCallback(async () => {
     setState({ status: "loading", settings: null, error: null });
     try {
-      const response = await fetch(path);
-      const data = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(data?.error?.message ?? `Request failed (${response.status}).`);
-      setState({ status: "ready", settings: data, error: null });
-      setEnabled(Boolean(data.accessLog?.enabled));
-      setFormat(data.accessLog?.format ?? "");
-      setLevel(data.methodSettings?.default?.loggingLevel ?? "OFF");
-      setDataTrace(Boolean(data.methodSettings?.default?.dataTraceEnabled));
-      setTracing(Boolean(data.tracingEnabled));
+      apply(await getLogging(path));
     } catch (error) {
       setState({ status: "error", settings: null, error: error.message });
     }
-  }, [path]);
+  }, [apply, path]);
 
   useEffect(() => {
+    if (!allowed) return undefined;
     let alive = true;
-    fetch(path).then(
-      async (response) => {
-        const data = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(data?.error?.message ?? `Request failed (${response.status}).`);
-        if (!alive) return;
-        setState({ status: "ready", settings: data, error: null });
-        setEnabled(Boolean(data.accessLog?.enabled));
-        setFormat(data.accessLog?.format ?? "");
-        setLevel(data.methodSettings?.default?.loggingLevel ?? "OFF");
-        setDataTrace(Boolean(data.methodSettings?.default?.dataTraceEnabled));
-        setTracing(Boolean(data.tracingEnabled));
-      },
+    getLogging(path).then(
+      (data) => { if (alive) apply(data); },
       (error) => { if (alive) setState({ status: "error", settings: null, error: error.message }); },
     );
     return () => { alive = false; };
-  }, [path]);
+  }, [allowed, apply, path]);
 
-  if (!can("pods.monitoring.view")) {
-    return <SectionCard><EmptyState icon={LockKeyhole} title="Access unavailable" description="Your current team access does not allow this screen." /></SectionCard>;
+  if (!allowed) {
+    return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={LockKeyhole} title="Access unavailable" description="Your current team access does not allow this screen." /></div>;
   }
 
   const save = async () => {
@@ -128,55 +147,95 @@ export function StageLoggingTab({ apiId, stageName }) {
     }
   };
 
-  return <div className="space-y-8">
-    <ScreenHeader title={`Logs & tracing — ${stageName}`} description="Access logs, execution logs, detailed metrics and tracing for this stage." />
-    {state.status === "loading" ? <LoadingArea panel label="Loading logging settings" /> : null}
-    {state.status === "error" ? <SectionCard><EmptyState icon={LockKeyhole} title="Settings unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
-    {state.status === "ready" ? <>
-      <SectionCard title="Access log" description="The format must contain $context.requestId or $context.extendedRequestId.">
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Checkbox id="stage-log-enabled" checked={enabled} onCheckedChange={(value) => setEnabled(value === true)} disabled={!writable} />
-            <Label htmlFor="stage-log-enabled" className="font-normal">Access logging enabled</Label>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {[["CLF", "$context.identity.sourceIp $context.identity.caller $context.identity.user [$context.requestTime] \"$context.httpMethod $context.resourcePath $context.protocol\" $context.status $context.responseLength $context.requestId"], ["JSON", "{ \"requestId\":\"$context.requestId\", \"ip\": \"$context.identity.sourceIp\", \"caller\":\"$context.identity.caller\", \"user\":\"$context.identity.user\",\"requestTime\":\"$context.requestTime\", \"httpMethod\":\"$context.httpMethod\",\"resourcePath\":\"$context.resourcePath\", \"status\":\"$context.status\",\"protocol\":\"$context.protocol\", \"responseLength\":\"$context.responseLength\" }"]].map(([name, preset]) => <Button key={name} variant="outline" size="sm" disabled={!writable} onClick={() => setFormat(preset)}>{name} preset</Button>)}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="stage-log-format">Format</Label>
-            <Textarea id="stage-log-format" value={format} onChange={(event) => setFormat(event.target.value)} rows={4} spellCheck={false} disabled={!writable} />
-          </div>
-          <div>
-            <p className="text-sm font-medium">Live preview (sample context)</p>
-            <pre className="mt-1 overflow-x-auto rounded bg-muted p-3 font-mono text-xs">{previewFormat(format) || "Enter a format to preview."}</pre>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="stage-log-destinations">Destinations (comma-separated: pods and/or sink ids)</Label>
-            <Input id="stage-log-destinations" value={destinations} onChange={(event) => setDestinations(event.target.value)} disabled={!writable} />
-          </div>
-        </div>
-      </SectionCard>
-      <SectionCard title="Execution log & tracing" description="Data trace includes request/response bodies (truncated to 1 KB) and needs pods.logs.data to view.">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="stage-log-level">Logging level (OFF / ERROR / INFO)</Label>
-            <Input id="stage-log-level" value={level} onChange={(event) => setLevel(event.target.value.toUpperCase())} disabled={!writable} />
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox id="stage-log-data-trace" checked={dataTrace} onCheckedChange={(value) => setDataTrace(value === true)} disabled={!writable} />
-            <Label htmlFor="stage-log-data-trace" className="font-normal">Data trace (warning: bodies are stored — restrict pods.logs.data)</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox id="stage-log-detailed" checked={detailed} onCheckedChange={(value) => setDetailed(value === true)} disabled={!writable} />
-            <Label htmlFor="stage-log-detailed" className="font-normal">Detailed (per-route) metrics</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox id="stage-log-tracing" checked={tracing} onCheckedChange={(value) => setTracing(value === true)} disabled={!writable} />
-            <Label htmlFor="stage-log-tracing" className="font-normal">Tracing (1 req/s reservoir + 5% sampling)</Label>
-          </div>
-          {writable ? <Button onClick={save} disabled={busy}>{busy ? "Saving…" : "Save settings"}</Button> : null}
-        </div>
-      </SectionCard>
-    </> : null}
+  if (state.status === "loading") return <LoadingArea panel label="Loading logging settings" />;
+  if (state.status === "error") {
+    return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
+      icon={ScrollText}
+      title="Settings unavailable"
+      description={state.error}
+      action={<Button variant="outline" className={SECONDARY} onClick={refresh}>Retry</Button>}
+    /></div>;
+  }
+
+  return <div className="space-y-6">
+    <SectionCard bare title="Access logging" description="One line per request, in your format. The format must include $context.requestId or $context.extendedRequestId.">
+      <div className="space-y-5">
+        <SettingsList>
+          <SettingRow
+            icon={FileText}
+            title="Access logging"
+            description={`Write an access-log line for every request ${stageName} serves.`}
+            control={<Switch checked={enabled} onCheckedChange={setEnabled} disabled={!writable} aria-label="Access logging" />}
+          />
+        </SettingsList>
+        <Field label="Format" htmlFor={`stage-log-format-${stageName}`}>
+          <Textarea
+            id={`stage-log-format-${stageName}`}
+            value={format}
+            onChange={(event) => setFormat(event.target.value)}
+            rows={4}
+            className="font-mono text-xs"
+            spellCheck={false}
+            disabled={!writable}
+          />
+        </Field>
+        {writable ? <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-text-secondary">Start from a preset:</span>
+          {PRESETS.map(([name, preset]) => <Button key={name} variant="outline" size="sm" className={SECONDARY} onClick={() => setFormat(preset)}>{name}</Button>)}
+        </div> : null}
+        <Field label="Preview" hint="Rendered against a sample request.">
+          <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg border border-border bg-surface-card p-3 font-mono text-xs text-foreground">{previewFormat(format) || "Enter a format to preview."}</pre>
+        </Field>
+        <Field
+          label="Destinations"
+          hint={<>Comma-separated: <span className="font-mono">pods</span> for the built-in log search, and/or sink IDs from <WorkspaceLink section="monitoring/exports" className="underline underline-offset-2 hover:text-foreground">Log Exports</WorkspaceLink>.</>}
+          htmlFor={`stage-log-destinations-${stageName}`}
+        >
+          <Input id={`stage-log-destinations-${stageName}`} value={destinations} onChange={(event) => setDestinations(event.target.value)} className="font-mono" spellCheck={false} disabled={!writable} />
+        </Field>
+      </div>
+    </SectionCard>
+
+    <SectionCard bare title="Execution logging & tracing" description="What the gateway records while it handles each request.">
+      <SettingsList>
+        <SettingRow
+          icon={ScrollText}
+          title="Execution logging level"
+          description="Errors only, or every step the gateway takes."
+          control={<Select value={level} onValueChange={setLevel} disabled={!writable}>
+            <SelectTrigger className="w-36" aria-label="Execution logging level"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {LOG_LEVELS.some((entry) => entry.value === level) ? null : <SelectItem value={level}>{level}</SelectItem>}
+              {LOG_LEVELS.map((entry) => <SelectItem key={entry.value} value={entry.value}>{entry.label}</SelectItem>)}
+            </SelectContent>
+          </Select>}
+        />
+        <SettingRow
+          icon={Microscope}
+          title="Data trace"
+          description="Stores request and response bodies (truncated to 1 KB). Only people with pods.logs.data can view them — grant it sparingly."
+          control={<Switch checked={dataTrace} onCheckedChange={setDataTrace} disabled={!writable} aria-label="Data trace" />}
+        />
+        <SettingRow
+          icon={Activity}
+          title="Detailed metrics"
+          description="Per-route metrics for this stage."
+          control={<Switch checked={detailed} onCheckedChange={setDetailed} disabled={!writable} aria-label="Detailed metrics" />}
+        />
+        <SettingRow
+          icon={Waypoints}
+          title="Tracing"
+          description="Samples 1 request per second plus 5% of the rest."
+          control={<Switch checked={tracing} onCheckedChange={setTracing} disabled={!writable} aria-label="Tracing" />}
+        />
+      </SettingsList>
+    </SectionCard>
+
+    {writable ? <div className="flex justify-end">
+      <Button className={PRIMARY} onClick={save} disabled={busy}>
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        {busy ? "Saving…" : "Save Changes"}
+      </Button>
+    </div> : null}
   </div>;
 }

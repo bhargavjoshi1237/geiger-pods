@@ -23,6 +23,7 @@
     "gateway:dev": "node --watch gateway/server.mjs"
   },
   "dependencies": {
+    "@geiger/notify": "file:../geiger-notify",
     "@geiger/orm": "github:bhargavjoshi1237/geiger-orm#b80e82ce40f10e59742a8e19a8178d1f39a5f817",
     "@geiger/rbac": "github:bhargavjoshi1237/geiger-rbac#1835de3735cf9c86df5adebdbc7458dd4302e40d",
     "@geiger/ui": "github:bhargavjoshi1237/geiger-ui#00cac4f5bc540cd910478abb0f240358cc653f08",

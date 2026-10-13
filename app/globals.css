@@ -3,6 +3,7 @@
 @import "@geiger/ui/tokens.css";
 
 @source "../node_modules/@geiger/ui/src";
+@source "../node_modules/@geiger/notify/src";
 
 /* Light theme: canonical geiger-notes palette. :not(.dark) so it beats tokens.css without touching dark. */
 :root:not(.dark) {
@@ -67,6 +68,30 @@
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+}
+
+/* As in geiger-events: any input marked data-lead/data-trail reserves padding +
+   icon + gap on that side, so call sites only mark the side. */
+@layer base {
+  [data-slot="input"][data-lead] {
+    padding-inline-start: calc(var(--input-box-padding-x, 0.75rem) + var(--input-box-icon-gap, 0.5rem) + 1rem) !important;
+  }
+  [data-slot="input"][data-trail] {
+    padding-inline-end: calc(var(--input-box-padding-x, 0.75rem) + var(--input-box-icon-gap, 0.5rem) + 1rem) !important;
+  }
+}
+
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
+}
+input[type="time"]::-webkit-calendar-picker-indicator:hover,
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
 }
 
 @theme {

@@ -4,7 +4,8 @@ import { EmptyState } from "@geiger/ui/screen-kit";
 import { LockKeyhole } from "lucide-react";
 import { WorkspaceGate } from "../workspace/workspace_states";
 import { useRbac } from "@/context/rbac-context";
-import { workspaceNav } from "../sidebar/sidebar_nav";
+import { MainScreenWrapper } from "../shared/screen_wrappers";
+import { navLeaves } from "../sidebar/sidebar_nav";
 import { PodsOverview } from "./overview/pods_overview";
 import { ProjectDetails } from "./project_details";
 import { Roadmap } from "./roadmap";
@@ -29,11 +30,6 @@ import { DomainsScreen } from "./domains/domains_screen";
 import { TruststoresScreen } from "./domains/truststores_screen";
 import { WafScreen } from "./waf/waf_screen";
 import { WebsocketScreen } from "./websocket/websocket_screen";
-import { ImportWizard } from "./distribution/import_wizard";
-import { ExportDialog } from "./distribution/export_dialog";
-import { DocsTab } from "./distribution/docs_tab";
-import { SdkPanel } from "./distribution/sdk_panel";
-import { AgentToolsPanel } from "./distribution/agent_tools_panel";
 import { PortalListScreen } from "./distribution/portals_list";
 
 const screens = {
@@ -52,11 +48,6 @@ const screens = {
   truststoreList: TruststoresScreen,
   wafList: WafScreen,
   websocket: WebsocketScreen,
-  importWizard: ImportWizard,
-  exportDialog: ExportDialog,
-  docsTab: DocsTab,
-  sdkPanel: SdkPanel,
-  agentTools: AgentToolsPanel,
   portalList: PortalListScreen,
   usagePlans: UsagePlansScreen,
   apiKeys: ApiKeysScreen,
@@ -83,11 +74,11 @@ const defaultScreen = {
 
 function AuthorizedScreen({ section, screen, params }) {
   const { can } = useRbac();
-  if (!can(`pods.${section}.view`)) return <EmptyState icon={LockKeyhole} title="Access unavailable" description="Your current team access does not allow this screen." />;
+  if (!can(`pods.${section}.view`)) return <MainScreenWrapper><div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={LockKeyhole} title="Access unavailable" description="Your current team access does not allow this screen." /></div></MainScreenWrapper>;
   const key = screen ?? defaultScreen[section];
   const Screen = key ? screens[key] : null;
   if (Screen) return <Screen params={params} />;
-  return <PlannedScreen item={workspaceNav.find((item) => item.slug === section)} />;
+  return <PlannedScreen title={navLeaves.find((leaf) => leaf.section === section)?.title} />;
 }
 
 export function ProjectScreen({ section, screen, params }) {

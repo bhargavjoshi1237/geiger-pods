@@ -1,11 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Gauge } from "lucide-react";
-import { EmptyState, LoadingArea, SectionCard } from "@geiger/ui/screen-kit";
+import { Gauge, Loader2 } from "lucide-react";
+import { EmptyState, Field, LoadingArea, SectionCard } from "@/components/internal/shared/screen_kit";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
-import { Label } from "@geiger/ui/label";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
@@ -21,92 +20,101 @@ async function call(projectId, apiId, path, options = {}) {
   return data;
 }
 
+const pickThrottle = (entry) => (entry == null ? null : {
+  rateLimit: entry.rateLimit ?? entry.throttlingRateLimit ?? null,
+  burstLimit: entry.burstLimit ?? entry.throttlingBurstLimit ?? null,
+});
+
+const asText = (value) => (value === null || value === undefined ? "" : String(value));
+
+// The throttle endpoint answers { defaultThrottle, throttles }; the raw stage
+// shape (method/route settings) is still read for older responses.
+function toForm(data, rest) {
+  const current = data.defaultThrottle !== undefined
+    ? data.defaultThrottle
+    : rest ? data.methodSettings?.["*/*"] : data.defaultRouteSettings;
+  const overrides = data.throttles ?? (rest ? data.methodSettings : data.routeSettings) ?? {};
+  const fallback = pickThrottle(current);
+  const pairs = Object.entries(overrides).filter(([key]) => key !== "*/*");
+  return {
+    rate: asText(fallback?.rateLimit),
+    burst: asText(fallback?.burstLimit),
+    overrides: JSON.stringify(Object.fromEntries(pairs.map(([key, entry]) => [key, pickThrottle(entry)])), null, 2),
+  };
+}
+
+function parseLimit(text) {
+  const value = Number(text);
+  return text.trim() !== "" && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
 /**
- * Stage throttling tab (S08 §7, embedded in the S05 stage detail by the
- * orchestrator): default rate/burst plus per-method (REST "/path/METHOD",
- * star-slash-star default) or per-route (HTTP/WebSocket) overrides, validated
- * against the project throttle. Standalone export; navigation wiring is the
- * orchestrator's.
+ * Stage throttling, embedded in the API editor's stage detail: the stage
+ * default rate/burst plus per-method (REST "/path/METHOD") or per-route
+ * (HTTP/WebSocket) overrides, validated against the project throttle.
  */
 export function StageThrottleTab({ api, stage }) {
   const { project } = useProject();
   const { can } = useRbac();
   const [state, setState] = useState({ status: "loading", data: null, error: null });
-  const [defaultText, setDefaultText] = useState("null");
-  const [throttlesText, setThrottlesText] = useState("{}");
+  const [form, setForm] = useState({ rate: "", burst: "", overrides: "{}" });
   const [busy, setBusy] = useState(false);
-
+  const writable = can("pods.stage.write");
+  const rest = api.protocol === "REST";
   const apiRef = api.id ?? api.publicId;
+  const path = `/stages/${encodeURIComponent(stage.name)}/throttle`;
+
+  const apply = useCallback((data) => {
+    setState({ status: "ready", data, error: null });
+    setForm(toForm(data, rest));
+  }, [rest]);
 
   const load = useCallback(async () => {
-    setState({ status: "loading", data: null, error: null });
     try {
-      const data = await call(project.id, apiRef, `/stages/${encodeURIComponent(stage.name)}/throttle`);
-      setState({ status: "ready", data, error: null });
-      const rest = api.protocol === "REST";
-      const current = rest
-        ? (data.methodSettings?.["*/*"] ?? null)
-        : (data.defaultRouteSettings ?? null);
-      setDefaultText(JSON.stringify(current === null ? null : {
-        rateLimit: current.throttlingRateLimit ?? current.rateLimit,
-        burstLimit: current.throttlingBurstLimit ?? current.burstLimit,
-      }));
-      const rest2 = rest ? data.methodSettings : data.routeSettings;
-      const pairs = Object.entries(rest2 ?? {}).filter(([key]) => key !== "*/*");
-      setThrottlesText(JSON.stringify(Object.fromEntries(pairs.map(([key, entry]) => [key, {
-        rateLimit: entry.throttlingRateLimit ?? entry.rateLimit,
-        burstLimit: entry.throttlingBurstLimit ?? entry.burstLimit,
-      }])), null, 2));
+      apply(await call(project.id, apiRef, path));
     } catch (error) {
       setState({ status: "error", data: null, error: error.message });
     }
-  }, [project.id, apiRef, stage.name, api.protocol]);
+  }, [project.id, apiRef, path, apply]);
 
   useEffect(() => {
     let alive = true;
-    call(project.id, apiRef, `/stages/${encodeURIComponent(stage.name)}/throttle`).then(
-      (data) => {
-        if (!alive) return;
-        setState({ status: "ready", data, error: null });
-        const rest = api.protocol === "REST";
-        const current = rest
-          ? (data.methodSettings?.["*/*"] ?? null)
-          : (data.defaultRouteSettings ?? null);
-        setDefaultText(JSON.stringify(current === null ? null : {
-          rateLimit: current.throttlingRateLimit ?? current.rateLimit,
-          burstLimit: current.throttlingBurstLimit ?? current.burstLimit,
-        }));
-        const rest2 = rest ? data.methodSettings : data.routeSettings;
-        const pairs = Object.entries(rest2 ?? {}).filter(([key]) => key !== "*/*");
-        setThrottlesText(JSON.stringify(Object.fromEntries(pairs.map(([key, entry]) => [key, {
-          rateLimit: entry.throttlingRateLimit ?? entry.rateLimit,
-          burstLimit: entry.throttlingBurstLimit ?? entry.burstLimit,
-        }])), null, 2));
-      },
+    call(project.id, apiRef, path).then(
+      (data) => { if (alive) apply(data); },
       (error) => { if (alive) setState({ status: "error", data: null, error: error.message }); },
     );
     return () => { alive = false; };
-  }, [project.id, apiRef, stage.name, api.protocol]);
+  }, [project.id, apiRef, path, apply]);
+
+  const set = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
 
   const save = async () => {
     let defaultThrottle = null;
+    if (form.rate.trim() !== "" || form.burst.trim() !== "") {
+      const rateLimit = parseLimit(form.rate);
+      const burstLimit = parseLimit(form.burst);
+      if (rateLimit === null || burstLimit === null) {
+        toast.error("Set both rate and burst to numbers of 0 or more, or leave both empty.");
+        return;
+      }
+      defaultThrottle = { rateLimit, burstLimit };
+    }
     let throttles = {};
     try {
-      defaultThrottle = defaultText.trim() === "" || defaultText.trim() === "null" ? null : JSON.parse(defaultText);
-      throttles = throttlesText.trim() === "" ? {} : JSON.parse(throttlesText);
+      throttles = form.overrides.trim() === "" ? {} : JSON.parse(form.overrides);
     } catch {
-      toast.error("Settings must be valid JSON.");
+      toast.error("Overrides must be valid JSON.");
       return;
     }
     setBusy(true);
     try {
-      await call(project.id, apiRef, `/stages/${encodeURIComponent(stage.name)}/throttle`, {
+      await call(project.id, apiRef, path, {
         method: "PUT",
         headers: { "If-Match": String(state.data.version) },
         body: JSON.stringify({ defaultThrottle, throttles }),
       });
-      toast.success("Stage throttling saved. Runtimes apply it within a minute.");
-      load();
+      toast.success("Throttling saved. Gateways apply it within a minute.");
+      await load();
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -115,33 +123,79 @@ export function StageThrottleTab({ api, stage }) {
   };
 
   if (state.status === "loading") return <LoadingArea panel label="Loading stage throttling" />;
-  if (state.status === "error") return <SectionCard><EmptyState icon={Gauge} title="Throttling unavailable" description={state.error} action={<Button variant="outline" onClick={load}>Retry</Button>} /></SectionCard>;
-  return <SectionCard title={`Throttling — ${stage.name}`} description="Stage defaults and per-method/route overrides. Values may not exceed the project throttle. Rate/burst 0 blocks all traffic.">
-    <div className="grid gap-2">
-      <Label htmlFor="s08-stage-default-throttle">Default ({api.protocol === "REST" ? '"*/*"' : "default route settings"}), JSON or null</Label>
-      <Textarea id="s08-stage-default-throttle" className="min-h-16 font-mono text-xs" value={defaultText} onChange={(event) => setDefaultText(event.target.value)} spellCheck={false} />
-      <Label htmlFor="s08-stage-throttle-overrides">Overrides ({api.protocol === "REST" ? '"/path/METHOD"' : "route keys"}), JSON object, ≤20</Label>
-      <Textarea id="s08-stage-throttle-overrides" className="min-h-24 font-mono text-xs" value={throttlesText} onChange={(event) => setThrottlesText(event.target.value)} spellCheck={false} />
-      <div><Button size="sm" disabled={busy || !can("pods.stage.write")} onClick={save}>Save throttling</Button></div>
+  if (state.status === "error") {
+    return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
+      icon={Gauge}
+      title="Throttling unavailable"
+      description={state.error}
+      action={<Button variant="outline" onClick={() => { setState({ status: "loading", data: null, error: null }); load(); }}>Retry</Button>}
+    /></div>;
+  }
+
+  const fieldId = `stage-throttle-${stage.name}`;
+  return <SectionCard
+    bare
+    title="Throttling"
+    description="Stage-wide limits plus per-method or per-route overrides. Values can't exceed the project throttle; a rate or burst of 0 blocks all traffic."
+    action={writable ? <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" disabled={busy} onClick={save}>
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Save Throttling
+    </Button> : null}
+  >
+    <div className="grid gap-4">
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Default rate (requests/sec)" htmlFor={`${fieldId}-rate`}>
+          <Input id={`${fieldId}-rate`} value={form.rate} onChange={set("rate")} inputMode="decimal" placeholder="No default" readOnly={!writable} />
+        </Field>
+        <Field label="Default burst" htmlFor={`${fieldId}-burst`}>
+          <Input id={`${fieldId}-burst`} value={form.burst} onChange={set("burst")} inputMode="numeric" placeholder="No default" readOnly={!writable} />
+        </Field>
+      </div>
+      <Field
+        label={rest ? "Method overrides (JSON)" : "Route overrides (JSON)"}
+        htmlFor={`${fieldId}-overrides`}
+        hint={rest
+          ? 'Keys are "/path/METHOD", values {"rateLimit", "burstLimit"}. Up to 20.'
+          : 'Keys are route keys, values {"rateLimit", "burstLimit"}. Up to 20.'}
+      >
+        <Textarea
+          id={`${fieldId}-overrides`}
+          className="min-h-28 font-mono text-xs"
+          value={form.overrides}
+          onChange={set("overrides")}
+          spellCheck={false}
+          readOnly={!writable}
+        />
+      </Field>
     </div>
   </SectionCard>;
 }
 
 /**
- * Project-level (account) throttle card (S08 §7): the ceiling every plan
- * and stage throttle is validated against. Lives on the S02 project
- * settings screen once the orchestrator wires it.
+ * Project-level (account) throttle card: the ceiling every plan and stage
+ * throttle is validated against.
  */
 export function ProjectThrottleCard({ settings, onSave, canSave, busy }) {
   const [rate, setRate] = useState(String(settings?.throttleRate ?? 10000));
   const [burst, setBurst] = useState(String(settings?.throttleBurst ?? 5000));
-  return <SectionCard title="Project throttle" description="Account-level token bucket (AWS defaults 10000 rps / 5000 burst). Plan and stage throttles may not exceed it.">
-    <div className="grid gap-2">
-      <Label htmlFor="s08-proj-rate">Rate (requests/sec)</Label>
-      <Input id="s08-proj-rate" value={rate} onChange={(event) => setRate(event.target.value)} inputMode="numeric" />
-      <Label htmlFor="s08-proj-burst">Burst</Label>
-      <Input id="s08-proj-burst" value={burst} onChange={(event) => setBurst(event.target.value)} inputMode="numeric" />
-      <div><Button size="sm" disabled={busy || !canSave} onClick={() => onSave({ throttleRate: Number(rate), throttleBurst: Number(burst) })}>Save throttle</Button></div>
+  return <SectionCard
+    title="Project throttle"
+    description="The account-wide token bucket (10,000 rps / 5,000 burst by default). Plan and stage throttles can't exceed it."
+    action={canSave ? <Button
+      size="sm"
+      className="bg-primary text-primary-foreground hover:bg-primary/90"
+      disabled={busy}
+      onClick={() => onSave({ throttleRate: Number(rate), throttleBurst: Number(burst) })}
+    >
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Save Throttle
+    </Button> : null}
+  >
+    <div className="grid grid-cols-2 gap-4">
+      <Field label="Rate (requests/sec)" htmlFor="project-throttle-rate">
+        <Input id="project-throttle-rate" value={rate} onChange={(event) => setRate(event.target.value)} inputMode="numeric" readOnly={!canSave} />
+      </Field>
+      <Field label="Burst" htmlFor="project-throttle-burst">
+        <Input id="project-throttle-burst" value={burst} onChange={(event) => setBurst(event.target.value)} inputMode="numeric" readOnly={!canSave} />
+      </Field>
     </div>
   </SectionCard>;
 }

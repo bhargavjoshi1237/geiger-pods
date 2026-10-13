@@ -1,17 +1,11 @@
 "use client";
 
-// REST method detail (C1 wiring for the S03 resources tab): the S07 auth
-// picker, the S06 method request / method response panels with real
-// persistence, the S06 integration request/response editors persisted through
-// the B3 management endpoints, and the S05 test-invoke tab.
-
 import { useEffect, useState } from "react";
-import { ListOrdered } from "lucide-react";
-import { EmptyState, LoadingArea, SectionCard } from "@geiger/ui/screen-kit";
-import { Badge } from "@geiger/ui/badge";
+import { Cable, ListOrdered, Plus, Trash2 } from "lucide-react";
+import { EmptyState, Field, LoadingArea, SectionCard } from "@/components/internal/shared/screen_kit";
 import { Button } from "@geiger/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
-import { Label } from "@geiger/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
@@ -24,14 +18,29 @@ import { TemplateEditor } from "../processing/template_editor";
 import { TestTab } from "../releases/test_tab";
 
 const PASSTHROUGH = "__passthrough__";
+const SECONDARY = "border-border bg-transparent text-muted-foreground hover:bg-surface-active hover:text-foreground";
+const PRIMARY = "bg-primary text-primary-foreground hover:bg-primary/90";
+
+function Unavailable({ title, description }) {
+  return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={ListOrdered} title={title} description={description} /></div>;
+}
+
+function StatusChip({ active, onClick, children }) {
+  return <button
+    type="button"
+    onClick={onClick}
+    aria-pressed={active}
+    className={`inline-flex h-8 items-center gap-2 rounded-lg border px-3 font-mono text-xs transition-colors ${active ? "border-border-strong bg-surface-active font-medium text-foreground" : "border-border bg-surface-card text-text-secondary hover:bg-surface-subtle hover:text-foreground"}`}
+  >{children}</button>;
+}
 
 function ContentHandlingSelect({ id, value, onChange }) {
   return <Select value={value || PASSTHROUGH} onValueChange={(next) => onChange(next === PASSTHROUGH ? null : next)}>
     <SelectTrigger id={id} className="w-full"><SelectValue /></SelectTrigger>
     <SelectContent>
-      <SelectItem value={PASSTHROUGH}>Passthrough (default)</SelectItem>
-      <SelectItem value="CONVERT_TO_TEXT">CONVERT_TO_TEXT</SelectItem>
-      <SelectItem value="CONVERT_TO_BINARY">CONVERT_TO_BINARY</SelectItem>
+      <SelectItem value={PASSTHROUGH}>Pass through unchanged (default)</SelectItem>
+      <SelectItem value="CONVERT_TO_TEXT">Convert to text (base64-encode binary)</SelectItem>
+      <SelectItem value="CONVERT_TO_BINARY">Convert to binary (base64-decode)</SelectItem>
     </SelectContent>
   </Select>;
 }
@@ -71,10 +80,14 @@ function MethodRequestSection({ api, resourceId, method, validators, models, onS
     }
   };
 
-  return <div className="space-y-3">
+  return <SectionCard
+    bare
+    title="Method request"
+    description="Validator, required parameters and request models for incoming calls."
+    action={writable ? <Button size="sm" className={PRIMARY} disabled={busy} onClick={save}>{busy ? "Saving…" : "Save Method Request"}</Button> : null}
+  >
     <MethodRequestEditor value={draft} validators={validators} models={models} onChange={setDraft} />
-    {writable ? <Button size="sm" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save method request"}</Button> : null}
-  </div>;
+  </SectionCard>;
 }
 
 function MethodResponsesSection({ api, resourceId, method, models }) {
@@ -106,8 +119,8 @@ function MethodResponsesSection({ api, resourceId, method, models }) {
     return () => { alive = false; };
   }, [project.id, base]);
 
-  if (state.status === "loading") return <SectionCard><LoadingArea label="Loading method responses" className="py-6" /></SectionCard>;
-  if (state.status === "error") return <SectionCard><EmptyState icon={ListOrdered} title="Method responses unavailable" description={state.error} /></SectionCard>;
+  if (state.status === "loading") return <LoadingArea panel label="Loading method responses" />;
+  if (state.status === "error") return <Unavailable title="Method responses unavailable" description={state.error} />;
 
   const pick = (statusCode) => {
     setSelected(statusCode);
@@ -145,14 +158,20 @@ function MethodResponsesSection({ api, resourceId, method, models }) {
     }
   };
 
-  return <div className="space-y-3">
-    <div className="flex flex-wrap items-center gap-2">
-      {state.items.map((entry) => <Button key={entry.id} variant={String(entry.statusCode) === selected ? "default" : "outline"} size="sm" onClick={() => pick(String(entry.statusCode))}>{entry.statusCode}</Button>)}
-      <Input value={selected} onChange={(event) => pick(event.target.value)} placeholder="200" className="w-20 font-mono text-xs" aria-label="Method response status" />
+  return <SectionCard
+    bare
+    title="Method responses"
+    description="Status codes this method can return, with their declared headers and models."
+    action={writable ? <Button size="sm" className={PRIMARY} disabled={busy} onClick={save}>{busy ? "Saving…" : `Save ${draft.statusCode} Response`}</Button> : null}
+  >
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        {state.items.map((entry) => <StatusChip key={entry.id} active={String(entry.statusCode) === selected} onClick={() => pick(String(entry.statusCode))}>{entry.statusCode}</StatusChip>)}
+        <Input value={selected} onChange={(event) => pick(event.target.value)} placeholder="200" className="h-8 w-20 font-mono text-xs" aria-label="Method response status" />
+      </div>
+      <MethodResponseEditor value={draft} models={models} onChange={setDraft} />
     </div>
-    <MethodResponseEditor value={draft} models={models} onChange={setDraft} />
-    {writable ? <Button size="sm" disabled={busy} onClick={save}>{busy ? "Saving…" : `Save ${draft.statusCode} response`}</Button> : null}
-  </div>;
+  </SectionCard>;
 }
 
 function IntegrationSection({ api, method, onChanged }) {
@@ -169,6 +188,7 @@ function IntegrationSection({ api, method, onChanged }) {
   const [statusCode, setStatusCode] = useState("200");
   const [pattern, setPattern] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const writable = can("pods.integration.write");
 
   useEffect(() => {
@@ -206,11 +226,16 @@ function IntegrationSection({ api, method, onChanged }) {
   }, [project.id, apiRef, method.integrationId]);
 
   if (!method.integrationId) {
-    return <SectionCard title="Integration" description="Attach an integration on the Integrations tab first; its request/response editors appear here."><p className="text-xs text-muted-foreground">No integration attached to this method yet.</p></SectionCard>;
+    return <SectionCard bare title="Integration" description="The backend this method calls.">
+      <div className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-surface-card px-6 py-10 text-center text-text-secondary">
+        <Cable className="size-6" />
+        <p className="text-sm">No integration attached yet — connect one in Integrations to edit its request and response mapping here</p>
+      </div>
+    </SectionCard>;
   }
-  if (state.status === "loading") return <SectionCard><LoadingArea label="Loading integration" className="py-6" /></SectionCard>;
+  if (state.status === "loading") return <LoadingArea panel label="Loading integration" />;
   if (state.status === "error" || !state.integration) {
-    return <SectionCard><EmptyState icon={ListOrdered} title="Integration unavailable" description={state.error ?? "Not found."} /></SectionCard>;
+    return <Unavailable title="Integration unavailable" description={state.error ?? "Not found."} />;
   }
 
   const reload = async () => {
@@ -323,120 +348,153 @@ function IntegrationSection({ api, method, onChanged }) {
     }
   };
 
+  const selectedResponse = state.responses.find((entry) => entry.id === selectedResponseId) ?? null;
+
   return <div className="space-y-8">
-    <SectionCard title="Integration request" description="Parameter mapping (integration.request.*), VTL templates per content type, passthrough behavior and content handling.">
+    <SectionCard
+      bare
+      title="Integration request"
+      description="How the incoming call is mapped onto the backend request."
+      action={writable ? <Button size="sm" className={PRIMARY} disabled={busy} onClick={saveRequest}>{busy ? "Saving…" : "Save Integration Request"}</Button> : null}
+    >
       <div className="space-y-4">
         <RestMappingEditor
           title="Request mapping"
-          description="integration.request.{header|querystring|path}.<name> from method.request.*, 'static', context.* or stageVariables.*."
+          description="Set integration.request.{header|querystring|path}.<name> from method.request.*, a 'static' value, context.* or stageVariables.*."
           rows={requestDraft.requestParameters ?? {}}
           onChange={(requestParameters) => setRequestDraft((current) => ({ ...current, requestParameters }))}
           keyPlaceholder="integration.request.header.X-Target"
           suggestions={["method.request.header.", "method.request.querystring.", "method.request.path.", "method.request.body", "context.", "stageVariables."]}
         />
-        <PassthroughPicker value={requestDraft.passthroughBehavior} onChange={(passthroughBehavior) => setRequestDraft((current) => ({ ...current, passthroughBehavior }))} />
-        <div className="space-y-2">
-          <Label htmlFor={`ir-content-${method.id}`}>Content handling (request)</Label>
-          <ContentHandlingSelect id={`ir-content-${method.id}`} value={requestDraft.contentHandling} onChange={(contentHandling) => setRequestDraft((current) => ({ ...current, contentHandling }))} />
+        <div className="grid gap-4 rounded-xl border border-border bg-surface-card p-4 sm:grid-cols-2">
+          <PassthroughPicker value={requestDraft.passthroughBehavior} onChange={(passthroughBehavior) => setRequestDraft((current) => ({ ...current, passthroughBehavior }))} />
+          <Field label="Content handling" htmlFor={`ir-content-${method.id}`}>
+            <ContentHandlingSelect id={`ir-content-${method.id}`} value={requestDraft.contentHandling} onChange={(contentHandling) => setRequestDraft((current) => ({ ...current, contentHandling }))} />
+          </Field>
         </div>
         {Object.entries(requestDraft.requestTemplates ?? {}).map(([contentType, template]) => (
-          <div key={contentType} className="space-y-2">
-            <TemplateEditor
-              contentType={contentType}
-              value={template}
-              onChange={(next) => setRequestDraft((current) => ({ ...current, requestTemplates: { ...current.requestTemplates, [contentType]: next } }))}
-            />
-            {writable ? <Button variant="outline" size="sm" disabled={busy} onClick={() => setRequestDraft((current) => {
-              const next = { ...(current.requestTemplates ?? {}) };
-              delete next[contentType];
-              return { ...current, requestTemplates: next };
-            })}>Remove {contentType} template</Button> : null}
-          </div>
-        ))}
-        {writable ? <div className="flex flex-wrap items-end gap-2">
-          <div className="w-full space-y-2 sm:w-56">
-            <Label htmlFor={`new-template-${method.id}`}>New template content type</Label>
-            <Input id={`new-template-${method.id}`} value={newTemplateType} onChange={(event) => setNewTemplateType(event.target.value)} placeholder="application/json" className="font-mono text-xs" />
-          </div>
-          <Button
-            variant="outline"
-            disabled={busy || !newTemplateType.trim()}
-            onClick={() => setRequestDraft((current) => ({ ...current, requestTemplates: { ...(current.requestTemplates ?? {}), [newTemplateType.trim()]: current.requestTemplates?.[newTemplateType.trim()] ?? "" } }))}
-          >Add template</Button>
-        </div> : null}
-        {writable ? <div className="pt-1"><Button size="sm" disabled={busy} onClick={saveRequest}>{busy ? "Saving…" : "Save integration request"}</Button></div> : null}
-      </div>
-    </SectionCard>
-    <SectionCard title="Integration responses" description="Selection patterns match the backend status (or function errorMessage); the default response has an empty pattern. Mapping tables use method.response.header.* and VTL templates render per Accept.">
-      {state.responses.length === 0 ? <p className="text-xs text-muted-foreground">No integration responses yet.</p> : <div className="flex flex-wrap items-center gap-2">
-        {state.responses.map((response) => <Button key={response.id} variant={response.id === selectedResponseId ? "default" : "outline"} size="sm" onClick={() => pickResponse(response.id)}>{response.statusCode}</Button>)}
-      </div>}
-      {selectedResponseId ? <div className="mt-4 space-y-4">
-        <div className="grid gap-3">
-          <div className="space-y-2">
-            <Label htmlFor={`ir-edit-pattern-${method.id}`}>Selection pattern (regex, empty = default)</Label>
-            <Input id={`ir-edit-pattern-${method.id}`} value={responseDraft.selectionPattern ?? ""} onChange={(event) => setResponseDraft((current) => ({ ...current, selectionPattern: event.target.value }))} placeholder="5\d\d" spellCheck={false} className="font-mono text-xs" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor={`ir-edit-content-${method.id}`}>Content handling (response)</Label>
-            <ContentHandlingSelect id={`ir-edit-content-${method.id}`} value={responseDraft.contentHandling} onChange={(contentHandling) => setResponseDraft((current) => ({ ...current, contentHandling }))} />
-          </div>
-        </div>
-        <RestMappingEditor
-          title="Response mapping"
-          description="method.response.header.<name> from integration.response.* — the header must be declared on the 200 method response."
-          rows={responseDraft.responseParameters ?? {}}
-          onChange={(responseParameters) => setResponseDraft((current) => ({ ...current, responseParameters }))}
-          keyPlaceholder="method.response.header.X-Reply"
-          suggestions={["integration.response.header.", "integration.response.body", "context.", "stageVariables."]}
-        />
-        {Object.entries(responseDraft.responseTemplates ?? {}).map(([contentType, template]) => (
           <TemplateEditor
             key={contentType}
             contentType={contentType}
             value={template}
-            onChange={(next) => setResponseDraft((current) => ({ ...current, responseTemplates: { ...current.responseTemplates, [contentType]: next } }))}
+            onChange={(next) => setRequestDraft((current) => ({ ...current, requestTemplates: { ...current.requestTemplates, [contentType]: next } }))}
+            action={writable ? <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Remove ${contentType} template`}
+              className="text-text-secondary hover:bg-surface-active hover:text-foreground"
+              disabled={busy}
+              onClick={() => setRequestDraft((current) => {
+                const next = { ...(current.requestTemplates ?? {}) };
+                delete next[contentType];
+                return { ...current, requestTemplates: next };
+              })}
+            ><Trash2 className="size-4" /></Button> : null}
           />
         ))}
-        <div className="flex flex-wrap gap-2">
-          {writable ? <Button size="sm" disabled={busy} onClick={saveResponse}>{busy ? "Saving…" : `Save ${responseDraft.statusCode} response`}</Button> : null}
-          {writable ? <Button variant="outline" size="sm" disabled={busy} onClick={() => {
-            const existing = state.responses.find((entry) => entry.id === selectedResponseId);
-            if (existing) removeResponse(existing);
-          }}>Delete</Button> : null}
-          {writable ? <Button
+        {writable ? <div className="flex flex-wrap items-end gap-2">
+          <Field label="New template content type" htmlFor={`new-template-${method.id}`} className="w-full sm:w-56">
+            <Input id={`new-template-${method.id}`} value={newTemplateType} onChange={(event) => setNewTemplateType(event.target.value)} placeholder="application/json" className="font-mono text-xs" />
+          </Field>
+          <Button
             variant="outline"
-            size="sm"
-            disabled={busy}
-            onClick={() => setResponseDraft((current) => ({ ...current, responseTemplates: { ...(current.responseTemplates ?? {}), "application/json": current.responseTemplates?.["application/json"] ?? "" } }))}
-          >Add application/json template</Button> : null}
-        </div>
-        <ul className="space-y-1 pt-2">
-          {state.responses.map((response) => <li key={response.id} className="flex flex-wrap items-center gap-2 text-xs">
-            <Badge variant="outline">{response.statusCode}</Badge>
-            <code className="font-mono text-muted-foreground">{response.selectionPattern || "(default)"}</code>
-          </li>)}
-        </ul>
-      </div> : null}
-      {writable ? <div className="flex flex-wrap items-end gap-2 pt-3">
-        <div className="space-y-2">
-          <Label htmlFor={`ir-status-${method.id}`}>Status</Label>
-          <Input id={`ir-status-${method.id}`} value={statusCode} onChange={(event) => setStatusCode(event.target.value)} className="w-24 font-mono" />
-        </div>
-        <div className="min-w-48 flex-1 space-y-2">
-          <Label htmlFor={`ir-pattern-${method.id}`}>Selection pattern (regex, empty = default)</Label>
-          <Input id={`ir-pattern-${method.id}`} value={pattern} onChange={(event) => setPattern(event.target.value)} placeholder="5\d\d" spellCheck={false} className="font-mono" />
-        </div>
-        <Button variant="outline" disabled={busy} onClick={addResponse}>Add response</Button>
-      </div> : null}
+            className={SECONDARY}
+            disabled={busy || !newTemplateType.trim()}
+            onClick={() => setRequestDraft((current) => ({ ...current, requestTemplates: { ...(current.requestTemplates ?? {}), [newTemplateType.trim()]: current.requestTemplates?.[newTemplateType.trim()] ?? "" } }))}
+          ><Plus className="size-4" />Add template</Button>
+        </div> : null}
+      </div>
     </SectionCard>
+    <SectionCard
+      bare
+      title="Integration responses"
+      description="Each response matches the backend status (or a function's error message) with a selection pattern; the one with an empty pattern is the default."
+    >
+      <div className="space-y-4">
+        {state.responses.length === 0 ? <p className="text-sm text-text-secondary">No integration responses yet.</p> : <div className="flex flex-wrap items-center gap-2">
+          {state.responses.map((response) => <StatusChip key={response.id} active={response.id === selectedResponseId} onClick={() => pickResponse(response.id)}>
+            {response.statusCode}
+            <span className="font-normal text-text-tertiary">{response.selectionPattern || "default"}</span>
+          </StatusChip>)}
+        </div>}
+        {selectedResponseId ? <div className="space-y-4">
+          <div className="grid gap-4 rounded-xl border border-border bg-surface-card p-4 sm:grid-cols-2">
+            <Field label="Selection pattern" htmlFor={`ir-edit-pattern-${method.id}`} hint="Regex; leave empty for the default response.">
+              <Input id={`ir-edit-pattern-${method.id}`} value={responseDraft.selectionPattern ?? ""} onChange={(event) => setResponseDraft((current) => ({ ...current, selectionPattern: event.target.value }))} placeholder="5\d\d" spellCheck={false} className="font-mono text-xs" />
+            </Field>
+            <Field label="Content handling" htmlFor={`ir-edit-content-${method.id}`}>
+              <ContentHandlingSelect id={`ir-edit-content-${method.id}`} value={responseDraft.contentHandling} onChange={(contentHandling) => setResponseDraft((current) => ({ ...current, contentHandling }))} />
+            </Field>
+          </div>
+          <RestMappingEditor
+            title="Response mapping"
+            description="Set method.response.header.<name> from integration.response.*. The header must be declared on the 200 method response."
+            rows={responseDraft.responseParameters ?? {}}
+            onChange={(responseParameters) => setResponseDraft((current) => ({ ...current, responseParameters }))}
+            keyPlaceholder="method.response.header.X-Reply"
+            suggestions={["integration.response.header.", "integration.response.body", "context.", "stageVariables."]}
+          />
+          {Object.entries(responseDraft.responseTemplates ?? {}).map(([contentType, template]) => (
+            <TemplateEditor
+              key={contentType}
+              contentType={contentType}
+              value={template}
+              onChange={(next) => setResponseDraft((current) => ({ ...current, responseTemplates: { ...current.responseTemplates, [contentType]: next } }))}
+            />
+          ))}
+          {writable ? <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" className={PRIMARY} disabled={busy} onClick={saveResponse}>{busy ? "Saving…" : `Save ${responseDraft.statusCode} Response`}</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className={SECONDARY}
+              disabled={busy}
+              onClick={() => setResponseDraft((current) => ({ ...current, responseTemplates: { ...(current.responseTemplates ?? {}), "application/json": current.responseTemplates?.["application/json"] ?? "" } }))}
+            ><Plus className="size-4" />application/json template</Button>
+            <Button variant="outline" size="sm" className="ml-auto border-border bg-transparent text-destructive-text hover:bg-surface-active" disabled={busy || !selectedResponse} onClick={() => setConfirmDelete(true)}><Trash2 className="size-4" />Delete response</Button>
+          </div> : null}
+        </div> : null}
+        {writable ? <div className="space-y-4 rounded-xl border border-border bg-surface-card p-4">
+          <p className="text-sm font-medium text-foreground">New integration response</p>
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label="Status" htmlFor={`ir-status-${method.id}`}>
+              <Input id={`ir-status-${method.id}`} value={statusCode} onChange={(event) => setStatusCode(event.target.value)} className="w-24 font-mono" />
+            </Field>
+            <Field label="Selection pattern" htmlFor={`ir-pattern-${method.id}`} className="min-w-48 flex-1">
+              <Input id={`ir-pattern-${method.id}`} value={pattern} onChange={(event) => setPattern(event.target.value)} placeholder="5\d\d (empty = default)" spellCheck={false} className="font-mono" />
+            </Field>
+            <Button variant="outline" className={SECONDARY} disabled={busy} onClick={addResponse}><Plus className="size-4" />Add response</Button>
+          </div>
+        </div> : null}
+      </div>
+    </SectionCard>
+    <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Delete integration response</DialogTitle>
+          <DialogDescription>Delete the <span className="font-mono font-medium text-foreground">{selectedResponse?.statusCode}</span> integration response{selectedResponse?.selectionPattern ? <> matching <span className="font-mono font-medium text-foreground">{selectedResponse.selectionPattern}</span></> : null}? This can&apos;t be undone.</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+          <Button
+            className="bg-red-500/90 text-white hover:bg-red-500"
+            disabled={busy}
+            onClick={() => {
+              setConfirmDelete(false);
+              const existing = state.responses.find((entry) => entry.id === selectedResponseId);
+              if (existing) removeResponse(existing);
+            }}
+          ><Trash2 className="size-4" />Delete</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>;
 }
 
 /**
- * Full method detail for the resources tab: auth, S06 panels, test invoke.
- * Remounted per method (keyed by the caller) so drafts reset without
- * setState-in-effect.
+ * Full method detail for the resources tab: auth, request/response panels,
+ * integration mapping and test invoke. Remounted per method (keyed by the
+ * caller) so drafts reset without setState-in-effect.
  */
 export function MethodDetail({ api, resourceId, method, onChanged }) {
   const { project } = useProject();
@@ -460,7 +518,7 @@ export function MethodDetail({ api, resourceId, method, onChanged }) {
 
   return <div className="space-y-8">
     <MethodAuthPicker api={api} resourceId={resourceId} method={method} onSaved={onChanged} />
-    {lookups.status === "loading" ? <SectionCard><LoadingArea label="Loading validators and models" className="py-6" /></SectionCard> : <>
+    {lookups.status === "loading" ? <LoadingArea panel label="Loading validators and models" /> : <>
       <MethodRequestSection api={api} resourceId={resourceId} method={method} validators={lookups.validators} models={lookups.models} onSaved={onChanged} />
       <MethodResponsesSection api={api} resourceId={resourceId} method={method} models={lookups.models} />
     </>}

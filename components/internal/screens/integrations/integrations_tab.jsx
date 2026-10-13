@@ -1,27 +1,51 @@
 "use client";
 
-// Integrations tab (S04 §7). Standalone exported component: the orchestrator
-// wires it into the API detail tabs later, so this file registers nothing.
-// Lists integrations per type and edits URI (with live token validation),
-// timeout, connection type + connector picker, TLS options and backend auth.
+// Integrations tab on the API detail page: the backends routes point at, with
+// URI (live token validation), timeout, connection + connector, TLS options
+// and vault-backed backend auth.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Cable, Plus, PlugZap } from "lucide-react";
-import { EmptyState, LoadingArea, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { Cable, Loader2, Pencil, Plus, PlugZap, Trash2 } from "lucide-react";
+import { DataTable, EmptyState, Field as KitField, LoadingArea, SectionCard } from "@/components/internal/shared/screen_kit";
+import { ActionMenu } from "@geiger/ui/action-menu";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
-import { Checkbox } from "@geiger/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Input } from "@geiger/ui/input";
 import { Label } from "@geiger/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
+import { Slider } from "@geiger/ui/slider";
+import { Switch } from "@geiger/ui/switch";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
+import { ListPagination, usePagination } from "@/components/internal/shared/pagination";
 import { HttpMappingEditor } from "../processing/parameter_mapping_editor";
 
 const TYPES = ["HTTP_PROXY", "HTTP", "MOCK", "FUNCTION_PROXY", "FUNCTION", "AWS_SERVICE"];
+
+const TYPE_LABEL = {
+  HTTP_PROXY: "HTTP proxy",
+  HTTP: "HTTP (mapped)",
+  MOCK: "Mock",
+  FUNCTION_PROXY: "Function proxy",
+  FUNCTION: "Function",
+  AWS_SERVICE: "AWS service",
+};
+
+const AUTH_LABEL = {
+  header: "Header",
+  bearer: "Bearer token",
+  basic_auth: "Basic auth",
+  query: "Query parameter",
+  oauth_client_credentials: "OAuth client credentials",
+  aws_sigv4: "AWS SigV4",
+  client_certificate: "Client certificate",
+};
+
+const SECONDARY = "border-border bg-transparent text-muted-foreground hover:bg-surface-active hover:text-foreground";
+const PRIMARY = "bg-primary text-primary-foreground hover:bg-primary/90";
 
 function timeoutMax(protocol) {
   return protocol === "HTTP" ? 30000 : 29000;
@@ -53,7 +77,24 @@ async function api(projectId, apiId, path, options = {}) {
   return data;
 }
 
-function IntegrationForm({ protocol, initial, connectors, onSubmit, submitting }) {
+function FormSection({ title, description, children }) {
+  return <section className="space-y-4 py-5 first:pt-0 last:pb-0">
+    <div>
+      <h3 className="text-sm font-medium">{title}</h3>
+      {description ? <p className="mt-0.5 text-xs text-muted-foreground">{description}</p> : null}
+    </div>
+    {children}
+  </section>;
+}
+
+// The kit Field, with an inline validation message taking the hint's place.
+function Field({ id, label, hint, error, className, children }) {
+  return <KitField label={label} htmlFor={id} className={className} hint={error ? <span className="text-destructive">{error}</span> : hint}>
+    {children}
+  </KitField>;
+}
+
+function IntegrationForm({ protocol, initial, connectors, onSubmit, onCancel, submitting }) {
   const [type, setType] = useState(initial?.type ?? "HTTP_PROXY");
   const [uri, setUri] = useState(initial?.uri ?? "");
   const [timeoutMs, setTimeoutMs] = useState(initial?.timeoutMs ?? (protocol === "HTTP" ? 30000 : 29000));
@@ -70,14 +111,19 @@ function IntegrationForm({ protocol, initial, connectors, onSubmit, submitting }
     responses: initial?.responseParameters ?? {},
   });
   const [templateSelectionExpression, setTemplateSelectionExpression] = useState(initial?.templateSelectionExpression ?? "");
-  // S09 release controls (REST only): streaming transfer + cache key params.
   const [transferMode, setTransferMode] = useState(initial?.responseTransferMode ?? "BUFFERED");
   const [cacheKeysText, setCacheKeysText] = useState((initial?.cacheKeyParameters ?? []).join("\n"));
   const [cacheNamespace, setCacheNamespace] = useState(initial?.cacheNamespace ?? "");
-  const uriError = useMemo(() => ((type === "HTTP_PROXY" || type === "HTTP") ? validateUri(uri) : null), [type, uri]);
+  // Only flag the URI once the user has typed or tried to submit, so a fresh
+  // dialog doesn't open with an error.
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const hasUri = type === "HTTP_PROXY" || type === "HTTP";
+  const uriError = useMemo(() => (hasUri ? validateUri(uri) : null), [hasUri, uri]);
+  const showUriError = uriError && (uri || submitAttempted);
   const max = timeoutMax(protocol);
-  return <form className="space-y-4" onSubmit={(event) => {
+  return <form className="flex min-h-0 flex-1 flex-col" onSubmit={(event) => {
     event.preventDefault();
+    setSubmitAttempted(true);
     if (uriError) {
       toast.error(uriError);
       return;
@@ -93,8 +139,6 @@ function IntegrationForm({ protocol, initial, connectors, onSubmit, submitting }
       ...(description ? { description } : {}),
       ...(protocol === "HTTP" ? { requestParameters: mapping.request ?? {}, responseParameters: mapping.responses ?? {} } : {}),
       ...(protocol === "WEBSOCKET" && templateSelectionExpression ? { templateSelectionExpression } : {}),
-      // S09: streaming + cache keys (REST proxy/function only; the API
-      // validates the full conflict matrix at deploy).
       ...(protocol === "REST" ? {
         responseTransferMode: transferMode,
         cacheKeyParameters: cacheKeysText.split("\n").map((entry) => entry.trim()).filter(Boolean),
@@ -102,100 +146,152 @@ function IntegrationForm({ protocol, initial, connectors, onSubmit, submitting }
       } : {}),
     });
   }}>
-    <div className="space-y-2">
-      <Label htmlFor="integration-type">Type</Label>
-      <Select value={type} onValueChange={setType}>
-        <SelectTrigger id="integration-type"><SelectValue /></SelectTrigger>
-        <SelectContent>{TYPES.map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}</SelectContent>
-      </Select>
+    <div className="min-h-0 flex-1 divide-y divide-border overflow-y-auto px-6 py-5">
+      <FormSection title="Backend" description="Where matching requests are forwarded.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field id="integration-type" label="Type">
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger id="integration-type" className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>{TYPES.map((entry) => <SelectItem key={entry} value={entry}>{TYPE_LABEL[entry] ?? entry}</SelectItem>)}</SelectContent>
+            </Select>
+          </Field>
+          <Field id="integration-connection" label="Connection">
+            <Select value={connectionType} onValueChange={setConnectionType}>
+              <SelectTrigger id="integration-connection" className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="INTERNET">Internet</SelectItem>
+                <SelectItem value="CONNECTOR">Private connector</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+        {connectionType === "CONNECTOR" ? <Field id="integration-connector" label="Connector">
+          <Select value={connectorId} onValueChange={setConnectorId}>
+            <SelectTrigger id="integration-connector" className="w-full"><SelectValue placeholder="Pick a connector" /></SelectTrigger>
+            <SelectContent>{connectors.map((entry) => <SelectItem key={entry.id} value={entry.id}>{entry.name} ({entry.status})</SelectItem>)}</SelectContent>
+          </Select>
+        </Field> : null}
+        {hasUri ? <Field
+          id="integration-uri"
+          label="URI template"
+          error={showUriError ? uriError : null}
+          hint={<>Supports <code className="font-mono">{"{param}"}</code>, <code className="font-mono">{"${stageVariables.name}"}</code> and <code className="font-mono">{"${request.path.name}"}</code> tokens.</>}
+        >
+          <Input
+            id="integration-uri"
+            className="font-mono text-sm"
+            value={uri}
+            onChange={(event) => setUri(event.target.value)}
+            placeholder="https://backend.example.com/{proxy}"
+            aria-invalid={showUriError ? true : undefined}
+            spellCheck={false}
+          />
+        </Field> : null}
+        <div className="space-y-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <Label htmlFor="integration-timeout">Timeout</Label>
+            <span className="font-mono text-sm tabular-nums">{Number(timeoutMs).toLocaleString()} ms</span>
+          </div>
+          <Slider
+            id="integration-timeout"
+            min={50}
+            max={max}
+            step={50}
+            value={[Number(timeoutMs)]}
+            onValueChange={([value]) => setTimeoutMs(value)}
+            aria-label="Timeout in milliseconds"
+          />
+          <div className="flex justify-between text-xs text-muted-foreground tabular-nums">
+            <span>50 ms</span>
+            <span>{max.toLocaleString()} ms</span>
+          </div>
+        </div>
+      </FormSection>
+
+      <FormSection title="Security" description="TLS to the backend and the credential injected on each call.">
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-border px-4 py-3">
+          <div className="space-y-0.5">
+            <Label htmlFor="integration-tls-insecure">Skip certificate validation</Label>
+            <p className="text-xs text-muted-foreground">Accept self-signed or mismatched certificates. Testing only.</p>
+          </div>
+          <Switch id="integration-tls-insecure" checked={insecureSkip} onCheckedChange={setInsecureSkip} />
+        </div>
+        <Field id="integration-sni" label="SNI override" hint="Hostname to verify instead of the URI host (optional).">
+          <Input id="integration-sni" className="font-mono text-sm" value={serverName} onChange={(event) => setServerName(event.target.value)} placeholder="api.internal.example.com" spellCheck={false} />
+        </Field>
+        <Field id="integration-backend-auth" label="Backend auth" hint="Secrets resolve at invoke time and never appear in logs or test output.">
+          <Select value={authType || "none"} onValueChange={(value) => setAuthType(value === "none" ? "" : value)}>
+            <SelectTrigger id="integration-backend-auth" className="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None</SelectItem>
+              <SelectItem value="header">Header</SelectItem>
+              <SelectItem value="bearer">Bearer token</SelectItem>
+              <SelectItem value="basic_auth">Basic auth</SelectItem>
+              <SelectItem value="query">Query parameter</SelectItem>
+              <SelectItem value="oauth_client_credentials">OAuth client credentials</SelectItem>
+              <SelectItem value="aws_sigv4">AWS SigV4</SelectItem>
+              <SelectItem value="client_certificate">Client certificate</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        {authType ? <div className="grid gap-4 sm:grid-cols-2">
+          <Field id="integration-secret-ref" label="Vault secret" className={(authType === "header" || authType === "query") ? "" : "sm:col-span-2"}>
+            <Input id="integration-secret-ref" className="font-mono text-sm" value={secretRef} onChange={(event) => setSecretRef(event.target.value)} placeholder="secret:<id>" spellCheck={false} />
+          </Field>
+          {(authType === "header" || authType === "query") ? <Field id="integration-header-name" label={authType === "header" ? "Header name" : "Query param name"}>
+            <Input id="integration-header-name" className="font-mono text-sm" value={headerName} onChange={(event) => setHeaderName(event.target.value)} placeholder={authType === "header" ? "X-Api-Key" : "api_key"} spellCheck={false} />
+          </Field> : null}
+        </div> : null}
+      </FormSection>
+
+      {protocol === "HTTP" ? <FormSection title="Parameter mapping">
+        <HttpMappingEditor request={mapping.request} responses={mapping.responses} onChange={setMapping} />
+      </FormSection> : null}
+
+      {protocol === "WEBSOCKET" ? <FormSection title="WebSocket">
+        <Field id="integration-template-selection" label="Template selection expression">
+          <Input id="integration-template-selection" value={templateSelectionExpression} onChange={(event) => setTemplateSelectionExpression(event.target.value)} placeholder="$default" spellCheck={false} className="font-mono text-sm" />
+        </Field>
+      </FormSection> : null}
+
+      {protocol === "REST" ? <FormSection title="Streaming & caching">
+        <Field
+          id="integration-transfer-mode"
+          label="Transfer mode"
+          hint={transferMode === "STREAM" ? "Streaming can't be combined with stage caching, response compression or response mapping templates on this method — deploy fails naming the conflict." : null}
+        >
+          <Select value={transferMode} onValueChange={setTransferMode}>
+            <SelectTrigger id="integration-transfer-mode" className="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="BUFFERED">Buffered</SelectItem>
+              <SelectItem value="STREAM">Stream (proxy integrations only)</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field id="integration-cache-keys" label="Cache key parameters" hint={<>One per line. Query params outside this list are ignored; for proxy resources <code className="font-mono">{"{proxy}"}</code> is always keyed.</>}>
+          <Textarea
+            id="integration-cache-keys"
+            className="min-h-20 font-mono text-xs"
+            value={cacheKeysText}
+            onChange={(event) => setCacheKeysText(event.target.value)}
+            placeholder={"method.request.querystring.page\nmethod.request.header.Accept"}
+            spellCheck={false}
+          />
+        </Field>
+        <Field id="integration-cache-ns" label="Cache namespace (optional)">
+          <Input id="integration-cache-ns" value={cacheNamespace} onChange={(event) => setCacheNamespace(event.target.value)} placeholder="v1" spellCheck={false} className="font-mono text-sm" />
+        </Field>
+      </FormSection> : null}
+
+      <FormSection title="Notes">
+        <Field id="integration-description" label="Description (optional)">
+          <Textarea id="integration-description" value={description} onChange={(event) => setDescription(event.target.value)} rows={2} placeholder="What this backend is for" />
+        </Field>
+      </FormSection>
     </div>
-    {(type === "HTTP_PROXY" || type === "HTTP") ? <div className="space-y-2">
-      <Label htmlFor="integration-uri">URI template</Label>
-      <Input id="integration-uri" value={uri} onChange={(event) => setUri(event.target.value)} placeholder="https://backend.example.com/{proxy}?v=${stageVariables.ver}" spellCheck={false} />
-      {uriError ? <p className="text-xs text-destructive">{uriError}</p>
-        : <p className="text-xs text-muted-foreground">Supports {"{param}"}, {"${stageVariables.name}"} and {"${request.path.name}"} tokens.</p>}
-    </div> : null}
-    <div className="space-y-2">
-      <Label htmlFor="integration-timeout">Timeout (50 ms – {max} ms): {timeoutMs} ms</Label>
-      <Input id="integration-timeout" type="range" min={50} max={max} step={50} value={timeoutMs} onChange={(event) => setTimeoutMs(event.target.value)} />
-    </div>
-    <div className="space-y-2">
-      <Label htmlFor="integration-connection">Connection</Label>
-      <Select value={connectionType} onValueChange={setConnectionType}>
-        <SelectTrigger id="integration-connection"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="INTERNET">INTERNET</SelectItem>
-          <SelectItem value="CONNECTOR">CONNECTOR (private)</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-    {connectionType === "CONNECTOR" ? <div className="space-y-2">
-      <Label htmlFor="integration-connector">Connector</Label>
-      <Select value={connectorId} onValueChange={setConnectorId}>
-        <SelectTrigger id="integration-connector"><SelectValue placeholder="Pick a connector" /></SelectTrigger>
-        <SelectContent>{connectors.map((entry) => <SelectItem key={entry.id} value={entry.id}>{entry.name} ({entry.status})</SelectItem>)}</SelectContent>
-      </Select>
-    </div> : null}
-    <div className="space-y-2">
-      <Label>Backend TLS</Label>
-      <div className="flex items-center gap-2">
-        <Checkbox id="integration-tls-insecure" checked={insecureSkip} onCheckedChange={(value) => setInsecureSkip(value === true)} />
-        <Label htmlFor="integration-tls-insecure" className="font-normal">Skip certificate chain validation (testing only)</Label>
-      </div>
-      <Input value={serverName} onChange={(event) => setServerName(event.target.value)} placeholder="SNI override (serverNameToVerify)" aria-label="SNI override (serverNameToVerify)" spellCheck={false} />
-    </div>
-    <div className="space-y-2">
-      <Label htmlFor="integration-backend-auth">Backend auth (vault-injected credential)</Label>
-      <Select value={authType} onValueChange={setAuthType}>
-        <SelectTrigger id="integration-backend-auth"><SelectValue placeholder="None" /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="header">header</SelectItem>
-          <SelectItem value="bearer">bearer</SelectItem>
-          <SelectItem value="basic_auth">basic_auth</SelectItem>
-          <SelectItem value="query">query</SelectItem>
-          <SelectItem value="oauth_client_credentials">oauth_client_credentials</SelectItem>
-          <SelectItem value="aws_sigv4">aws_sigv4</SelectItem>
-          <SelectItem value="client_certificate">client_certificate</SelectItem>
-        </SelectContent>
-      </Select>
-      {authType ? <Input value={secretRef} onChange={(event) => setSecretRef(event.target.value)} placeholder="secret:<id>" spellCheck={false} /> : null}
-      {(authType === "header" || authType === "query") ? <Input value={headerName} onChange={(event) => setHeaderName(event.target.value)} placeholder="Header / query param name" spellCheck={false} /> : null}
-      <p className="text-xs text-muted-foreground">Secrets resolve at invoke time and never appear in logs or test output.</p>
-    </div>
-    <div className="space-y-2">
-      <Label htmlFor="integration-description">Description (optional)</Label>
-      <Textarea id="integration-description" value={description} onChange={(event) => setDescription(event.target.value)} rows={2} />
-    </div>
-    {protocol === "HTTP" ? <HttpMappingEditor request={mapping.request} responses={mapping.responses} onChange={setMapping} /> : null}
-    {protocol === "WEBSOCKET" ? <div className="space-y-2">
-      <Label htmlFor="integration-template-selection">Template selection expression (WebSocket)</Label>
-      <Input id="integration-template-selection" value={templateSelectionExpression} onChange={(event) => setTemplateSelectionExpression(event.target.value)} placeholder="$default" spellCheck={false} className="font-mono" />
-    </div> : null}
-    {protocol === "REST" ? <div className="space-y-2">
-      <Label htmlFor="integration-transfer-mode">Transfer mode</Label>
-      <Select value={transferMode} onValueChange={setTransferMode}>
-        <SelectTrigger id="integration-transfer-mode"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="BUFFERED">Buffered</SelectItem>
-          <SelectItem value="STREAM">Stream (HTTP_PROXY/FUNCTION_PROXY only)</SelectItem>
-        </SelectContent>
-      </Select>
-      {transferMode === "STREAM" ? <p className="text-xs text-muted-foreground">STREAM is incompatible with stage caching for this method, response compression and response mapping templates — deploy fails naming the conflict.</p> : null}
-      <Label htmlFor="integration-cache-keys">Cache key parameters (one per line)</Label>
-      <Textarea
-        id="integration-cache-keys"
-        className="min-h-16 font-mono text-xs"
-        value={cacheKeysText}
-        onChange={(event) => setCacheKeysText(event.target.value)}
-        placeholder={"method.request.querystring.page\nmethod.request.header.Accept"}
-        spellCheck={false}
-      />
-      <p className="text-xs text-muted-foreground">Query params outside this list are ignored. For proxy resources {"{proxy}"} is always keyed.</p>
-      <Label htmlFor="integration-cache-ns">Cache namespace (optional)</Label>
-      <Input id="integration-cache-ns" value={cacheNamespace} onChange={(event) => setCacheNamespace(event.target.value)} placeholder="v1" spellCheck={false} className="font-mono" />
-    </div> : null}
-    <DialogFooter>
-      <Button type="submit" disabled={submitting}>{submitting ? "Saving…" : initial ? "Save changes" : "Create integration"}</Button>
+    <DialogFooter className="border-t border-border px-6 py-4">
+      <Button type="button" variant="outline" className={SECONDARY} onClick={onCancel} disabled={submitting}>Cancel</Button>
+      <Button type="submit" className={PRIMARY} disabled={submitting}>{submitting ? <Loader2 className="size-4 animate-spin" /> : null}{initial ? "Save Changes" : "Create Integration"}</Button>
     </DialogFooter>
   </form>;
 }
@@ -206,8 +302,10 @@ export function IntegrationsTab({ apiId, protocol = "REST" }) {
   const [state, setState] = useState({ status: "loading", items: [], error: null });
   const [connectors, setConnectors] = useState([]);
   const [dialog, setDialog] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [busy, setBusy] = useState(false);
   const writable = can("pods.integration.write");
+  const pager = usePagination(state.items, { resetKey: apiId });
 
   const refresh = useCallback(async () => {
     setState({ status: "loading", items: [], error: null });
@@ -242,6 +340,7 @@ export function IntegrationsTab({ apiId, protocol = "REST" }) {
       await work();
       toast.success(success);
       setDialog(null);
+      setDeleteTarget(null);
       await refresh();
     } catch (mutationError) {
       toast.error(mutationError.message);
@@ -251,56 +350,82 @@ export function IntegrationsTab({ apiId, protocol = "REST" }) {
   };
 
   if (!writable) {
-    return <SectionCard><EmptyState icon={Cable} title="Access unavailable" description="Your current team access does not allow editing integrations." /></SectionCard>;
+    return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={Cable} title="Access unavailable" description="Your current team access does not allow editing integrations." /></div>;
   }
 
+  const columns = [
+    { key: "type", header: "Type", render: (row) => <Badge variant="outline">{TYPE_LABEL[row.type] ?? row.type}</Badge> },
+    {
+      key: "target",
+      header: "Target",
+      className: "w-full max-w-0",
+      render: (row) => <div className="min-w-0">
+        <p className="truncate font-mono text-sm text-foreground" title={row.uri ?? undefined}>{row.uri ?? (row.type === "MOCK" ? "Mock response" : "—")}</p>
+        {row.description ? <p className="mt-0.5 max-w-[26rem] truncate text-xs text-text-secondary">{row.description}</p> : null}
+      </div>,
+    },
+    { key: "connection", header: "Connection", render: (row) => <span className="text-sm text-text-secondary">{row.connectionType === "CONNECTOR" ? "Private connector" : "Internet"}</span> },
+    { key: "auth", header: "Backend auth", render: (row) => <span className="text-sm text-text-secondary">{row.backendAuth ? AUTH_LABEL[row.backendAuth.type] ?? row.backendAuth.type : "None"}</span> },
+    { key: "timeout", header: "Timeout", align: "right", render: (row) => <span className="font-mono text-sm tabular-nums text-text-secondary">{Number(row.timeoutMs ?? 0).toLocaleString()} ms</span> },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      className: "w-12 text-right",
+      render: (row) => <ActionMenu
+        label={`Actions for ${row.uri ?? TYPE_LABEL[row.type] ?? row.type}`}
+        disabled={busy}
+        items={[
+          { icon: Pencil, label: "Edit", onSelect: () => setDialog({ mode: "edit", integration: row }) },
+          { separator: true },
+          { icon: Trash2, label: "Delete", destructive: true, onSelect: () => setDeleteTarget(row) },
+        ]}
+      />,
+    },
+  ];
+
+  const ready = state.status === "ready";
+
   return <div className="space-y-8">
-    <ScreenHeader
-      title="Integrations"
-      description="Backends for your routes: HTTP proxy, mock, functions, AWS services and private connectors."
-      actions={<Button onClick={() => setDialog({ mode: "create" })}><Plus className="size-4" />New integration</Button>}
-    />
-    {state.status === "loading" ? <SectionCard><LoadingArea label="Loading integrations" /></SectionCard> : null}
-    {state.status === "error" ? <SectionCard><EmptyState icon={PlugZap} title="Integrations unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
-    {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState icon={PlugZap} title="No integrations yet" description="Point your first route at a backend. HTTP proxy is the fastest start." action={<Button onClick={() => setDialog({ mode: "create" })}>New integration</Button>} /></SectionCard> : null}
-    {state.status === "ready" && state.items.length > 0 ? <SectionCard title="Integrations" description={`${state.items.length} configured.`}>
-      <ul className="divide-y divide-border">
-        {state.items.map((integration) => <li key={integration.id} className="flex flex-wrap items-center gap-3 py-4 first:pt-0 last:pb-0">
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-mono text-sm">{integration.uri ?? integration.type}</p>
-            <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <Badge variant="outline">{integration.type}</Badge>
-              <Badge variant="outline">{integration.connectionType}</Badge>
-              <span>{integration.timeoutMs} ms</span>
-              {integration.backendAuth ? <span>auth: {integration.backendAuth.type}</span> : null}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={busy} onClick={() => setDialog({ mode: "edit", integration })}>Edit</Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={busy}
-              onClick={() => mutate(
-                () => api(project.id, apiId, `/${encodeURIComponent(integration.id)}`, { method: "DELETE" }),
-                "Integration deleted.",
-              )}
-            >Delete</Button>
-          </div>
-        </li>)}
-      </ul>
-    </SectionCard> : null}
+    <SectionCard
+      bare
+      title="Backends"
+      description={ready && state.items.length > 0 ? `${state.items.length} configured — HTTP proxy, mock, functions, AWS services and private connectors.` : "HTTP proxy, mock, functions, AWS services and private connectors."}
+      action={<Button size="sm" className={PRIMARY} onClick={() => setDialog({ mode: "create" })}><Plus className="size-4" />New Integration</Button>}
+    >
+      {state.status === "loading" ? <LoadingArea panel label="Loading integrations" /> : null}
+      {state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={PlugZap} title="Integrations unavailable" description={state.error} action={<Button variant="outline" size="sm" className={SECONDARY} onClick={refresh}>Retry</Button>} /></div> : null}
+      {ready && state.items.length === 0 ? <button
+        type="button"
+        onClick={() => setDialog({ mode: "create" })}
+        className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-surface-card py-10 text-text-secondary transition-colors hover:border-border-strong hover:text-muted-foreground"
+      >
+        <PlugZap className="size-6" />
+        <p className="text-sm">No integrations yet — create one to point a route at a backend</p>
+      </button> : null}
+      {ready && state.items.length > 0 ? <div className="space-y-3">
+        <DataTable
+          columns={columns}
+          data={pager.pageItems}
+          getRowKey={(row) => row.id}
+          onRowClick={(row) => { if (!busy) setDialog({ mode: "edit", integration: row }); }}
+        />
+        {state.items.length > 10 ? <ListPagination {...pager} itemLabel="integrations" /> : null}
+      </div> : null}
+    </SectionCard>
+
     <Dialog open={dialog !== null} onOpenChange={(open) => { if (!open) setDialog(null); }}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{dialog?.mode === "edit" ? "Edit integration" : "New integration"}</DialogTitle>
-          <DialogDescription>Backends never see your vault secrets in plain text outside the invoke path.</DialogDescription>
+      <DialogContent className="flex max-h-[90vh] flex-col gap-0 bg-background p-0 sm:max-w-2xl">
+        <DialogHeader className="border-b border-border px-6 pt-6 pb-4 pr-12">
+          <DialogTitle>{dialog?.mode === "edit" ? "Edit Integration" : "New Integration"}</DialogTitle>
+          <DialogDescription>Vault secrets are only decrypted on the invoke path — backends never see them anywhere else.</DialogDescription>
         </DialogHeader>
         {dialog ? <IntegrationForm
           protocol={protocol}
           initial={dialog.integration}
           connectors={connectors}
           submitting={busy}
+          onCancel={() => setDialog(null)}
           onSubmit={(input) => dialog.mode === "edit"
             ? mutate(
               () => api(project.id, apiId, `/${encodeURIComponent(dialog.integration.id)}`, {
@@ -315,6 +440,29 @@ export function IntegrationsTab({ apiId, protocol = "REST" }) {
               "Integration created.",
             )}
         /> : null}
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open && !busy) setDeleteTarget(null); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Delete integration</DialogTitle>
+          <DialogDescription>
+            Delete the <span className="font-medium text-foreground">{TYPE_LABEL[deleteTarget?.type] ?? deleteTarget?.type}</span> integration
+            {deleteTarget?.uri ? <> for <span className="break-all font-mono text-foreground">{deleteTarget.uri}</span></> : null}? Routes using it stop reaching a backend. This can&apos;t be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="ghost" disabled={busy} onClick={() => setDeleteTarget(null)}>Cancel</Button>
+          <Button
+            className="bg-red-500/90 text-white hover:bg-red-500"
+            disabled={busy}
+            onClick={() => mutate(
+              () => api(project.id, apiId, `/${encodeURIComponent(deleteTarget.id)}`, { method: "DELETE" }),
+              "Integration deleted.",
+            )}
+          ><Trash2 className="size-4" />{busy ? "Deleting…" : "Delete"}</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   </div>;

@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { SystemFavicon } from "@/components/system-favicon";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,7 +16,6 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: { default: "Pods - Geiger Studio", template: "%s - Geiger Studio" },
   description: "Manage your APIs, services and releases in a shared Geiger workspace.",
-  icons: { icon: `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/logo1.svg` },
 };
 
 export default function RootLayout({ children }) {
@@ -26,7 +26,7 @@ export default function RootLayout({ children }) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col"><Providers>{children}</Providers></body>
+      <body className="min-h-full flex flex-col"><SystemFavicon /><Providers>{children}</Providers></body>
     </html>
   );
 }

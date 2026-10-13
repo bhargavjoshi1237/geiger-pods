@@ -26,7 +26,8 @@ async function source(relative) {
 test("F27: settings/tokens and settings/stacks resolve to the admin screens", () => {
   assert.deepEqual(resolveScreen(["settings", "tokens"]), { section: "settings", screen: "tokens", params: {} });
   assert.deepEqual(resolveScreen(["settings", "stacks"]), { section: "settings", screen: "stacks", params: {} });
-  assert.deepEqual(resolveScreen(["settings", "exports"]), { section: "settings", screen: "exports", params: {} });
+  assert.deepEqual(resolveScreen(["settings", "exports"]), { section: "monitoring", screen: "exports", params: {} });
+  assert.deepEqual(resolveScreen(["monitoring", "exports"]), { section: "monitoring", screen: "exports", params: {} });
 });
 
 test("F27: registry mounts the admin screens", async () => {
@@ -43,10 +44,10 @@ test("F27: registry mounts the admin screens", async () => {
   }
 });
 
-test("F27: settings screen links to the tokens/stacks sub-pages", async () => {
-  const settings = await source("components/internal/screens/settings/project_settings.jsx");
-  assert.ok(settings.includes('href="tokens"'), "settings must link to the tokens sub-page");
-  assert.ok(settings.includes('href="stacks"'), "settings must link to the stacks sub-page");
+test("F27: the sidebar Settings group links to the tokens/stacks sub-pages", async () => {
+  const nav = await source("components/internal/sidebar/sidebar_nav.jsx");
+  assert.ok(nav.includes('path: "settings/tokens"'), "sidebar must link to the tokens sub-page");
+  assert.ok(nav.includes('path: "settings/stacks"'), "sidebar must link to the stacks sub-page");
   const page = await source("app/project/[projectId]/[[...rest]]/page.js");
   assert.ok(page.includes("resolveScreen"), "project catch-all route must serve workspace screens");
 });

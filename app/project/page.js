@@ -14,7 +14,7 @@ function ProjectResolver() {
     let remembered = null;
     try { remembered = localStorage.getItem(LAST_PROJECT_KEY); } catch { /* Storage is optional. */ }
     const id = pickDefaultProjectId(projects, remembered);
-    if (id) router.replace(`/project/${encodeURIComponent(id)}`);
+    if (id) router.replace(`/project/${encodeURIComponent(id)}/overview`);
   }, [projects, loading, error, router]);
   return <LoadingArea label="Opening your project" />;
 }

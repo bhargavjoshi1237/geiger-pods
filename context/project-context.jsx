@@ -39,7 +39,7 @@ function UserProjects({ children }) {
     setAttempt((value) => value + 1);
   }, []);
   const setActiveProject = useCallback((id) => {
-    if (state.projects.some((p) => p.id === id)) router.push(`/project/${encodeURIComponent(id)}`);
+    if (state.projects.some((p) => p.id === id)) router.push(`/project/${encodeURIComponent(id)}/overview`);
   }, [state.projects, router]);
   const value = useMemo(() => ({ ...state, project, projectId, refresh, setActiveProject }), [state, project, projectId, refresh, setActiveProject]);
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;

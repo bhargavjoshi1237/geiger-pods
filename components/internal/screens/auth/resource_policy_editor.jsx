@@ -1,23 +1,26 @@
 "use client";
 
-// Resource policy editor (S07 §8, REST API settings): JSON editor with the
-// four spec templates (mirroring `POLICY_TEMPLATES` in
+// Resource policy editor (REST API settings): JSON editor with four starter
+// templates (mirroring `POLICY_TEMPLATES` in
 // `lib/control/resource-policies.mjs`) and a policy simulator calling
 // `resource-policy/simulate`. Edits take effect on the next deployment.
 
 import { useEffect, useState } from "react";
-import { ShieldCheck } from "lucide-react";
-import { EmptyState, LoadingArea, SectionCard } from "@geiger/ui/screen-kit";
+import { Loader2, ShieldCheck, Trash2 } from "lucide-react";
+import { EmptyState, Field, LoadingArea, SectionCard } from "@/components/internal/shared/screen_kit";
 import { Badge } from "@geiger/ui/badge";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
-import { Label } from "@geiger/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@geiger/ui/dialog";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
 import { useRbac } from "@/context/rbac-context";
 import { fetchApis } from "../apis/api_list";
 import { validatePolicyJson } from "@/lib/workspace/auth-ui.mjs";
+
+const PRIMARY = "bg-primary text-primary-foreground hover:bg-primary/90";
+const SECONDARY = "border-border bg-transparent text-muted-foreground hover:bg-surface-active hover:text-foreground";
 
 const TEMPLATES = {
   ipAllowList: {
@@ -86,6 +89,9 @@ export function ResourcePolicyEditor({ api }) {
   const [principalArn, setPrincipalArn] = useState("");
   const [simulation, setSimulation] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [simulating, setSimulating] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const writable = can("pods.resource_policy.write");
 
   useEffect(() => {
@@ -104,10 +110,10 @@ export function ResourcePolicyEditor({ api }) {
   if (api.protocol !== "REST") return null;
 
   if (state.status === "loading") {
-    return <SectionCard><LoadingArea label="Loading resource policy" className="py-6" /></SectionCard>;
+    return <LoadingArea panel label="Loading resource policy" />;
   }
   if (state.status === "error") {
-    return <SectionCard><EmptyState icon={ShieldCheck} title="Resource policy unavailable" description={state.error} /></SectionCard>;
+    return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={ShieldCheck} title="Resource policy unavailable" description={state.error} /></div>;
   }
 
   const save = async () => {
@@ -119,6 +125,7 @@ export function ResourcePolicyEditor({ api }) {
       return;
     }
     setBusy(true);
+    setSaving(true);
     try {
       const saved = await fetchApis(project.id, `/${encodeURIComponent(apiRef)}/resource-policy`, {
         method: "PUT",
@@ -131,6 +138,7 @@ export function ResourcePolicyEditor({ api }) {
       toast.error(error.message);
     } finally {
       setBusy(false);
+      setSaving(false);
     }
   };
 
@@ -158,6 +166,7 @@ export function ResourcePolicyEditor({ api }) {
       return;
     }
     setBusy(true);
+    setSimulating(true);
     try {
       const result = await fetchApis(project.id, `/${encodeURIComponent(apiRef)}/resource-policy/simulate`, {
         method: "POST",
@@ -172,53 +181,72 @@ export function ResourcePolicyEditor({ api }) {
       toast.error(error.message);
     } finally {
       setBusy(false);
+      setSimulating(false);
     }
   };
 
   return <div className="space-y-8">
-    <SectionCard title="Resource policy" description="IP, connector and principal rules evaluated before authorizers (explicit Deny first). Changes take effect on the next deployment.">
-      <div className="flex flex-wrap gap-2 pb-3">
-        {Object.entries(TEMPLATES).map(([key, template]) => <Button
-          key={key}
-          variant="outline"
-          size="sm"
-          disabled={!writable || busy}
-          title={template.description}
-          onClick={() => setText(JSON.stringify(template.document, null, 2))}
-        >{template.title}</Button>)}
+    <SectionCard
+      bare
+      title="Resource policy"
+      description="IP, connector and principal rules evaluated before authorizers (explicit Deny first). Changes take effect on the next deployment."
+      action={writable ? <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button variant="outline" size="sm" className={SECONDARY} disabled={busy} onClick={() => setConfirmClear(true)}>Clear</Button>
+        <Button size="sm" className={PRIMARY} disabled={busy} onClick={save}>{saving ? "Saving…" : "Save Policy"}</Button>
+      </div> : null}
+    >
+      <div className="space-y-4">
+        <Field label="Start from a template">
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(TEMPLATES).map(([key, template]) => <Button
+              key={key}
+              variant="outline"
+              size="sm"
+              className={SECONDARY}
+              disabled={!writable || busy}
+              title={template.description}
+              onClick={() => setText(JSON.stringify(template.document, null, 2))}
+            >{template.title}</Button>)}
+          </div>
+        </Field>
+        <Field label="Policy document" htmlFor="resource-policy-doc" hint="JSON, up to 8192 characters serialized.">
+          <Textarea id="resource-policy-doc" rows={12} value={text} onChange={(event) => setText(event.target.value)} spellCheck={false} disabled={!writable || busy} className="font-mono text-xs" />
+        </Field>
+        {writable ? null : <p className="text-xs text-text-secondary">Read-only: editing needs the resource-policy permission.</p>}
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="resource-policy-doc">Policy document (JSON, ≤ 8192 chars serialized)</Label>
-        <Textarea id="resource-policy-doc" rows={12} value={text} onChange={(event) => setText(event.target.value)} spellCheck={false} disabled={!writable || busy} className="font-mono text-xs" />
-      </div>
-      {writable ? <div className="flex gap-2 pt-3">
-        <Button size="sm" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save policy"}</Button>
-        <Button variant="outline" size="sm" disabled={busy} onClick={clear}>Clear</Button>
-      </div> : <p className="pt-3 text-xs text-muted-foreground">Read-only: editing needs the resource-policy permission.</p>}
     </SectionCard>
-    <SectionCard title="Policy simulator" description="Evaluate a method ARN, source IP and optional principal against the saved draft policy.">
-      <div className="grid gap-3">
-        <div className="space-y-2">
-          <Label htmlFor="simulate-arn">Method ARN</Label>
+    <SectionCard bare title="Policy simulator" description="Evaluate a method ARN, source IP and optional principal against the saved draft policy.">
+      <div className="grid gap-4">
+        <Field label="Method ARN" htmlFor="simulate-arn">
           <Input id="simulate-arn" value={methodArn} onChange={(event) => setMethodArn(event.target.value)} placeholder={`arn:pods:execute-api:auto:${project.id}:…/prod/GET/pets`} spellCheck={false} className="font-mono text-xs" />
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="simulate-ip">Source IP</Label>
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Source IP" htmlFor="simulate-ip">
             <Input id="simulate-ip" value={sourceIp} onChange={(event) => setSourceIp(event.target.value)} placeholder="203.0.113.7" spellCheck={false} className="font-mono text-xs" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="simulate-principal">Principal ARN (optional)</Label>
+          </Field>
+          <Field label="Principal ARN" htmlFor="simulate-principal" hint="Optional.">
             <Input id="simulate-principal" value={principalArn} onChange={(event) => setPrincipalArn(event.target.value)} placeholder="arn:pods:iam::…:credential/PKIA…" spellCheck={false} className="font-mono text-xs" />
-          </div>
+          </Field>
         </div>
-        <div><Button variant="outline" size="sm" disabled={busy || !writable} onClick={simulate}>{busy ? "Simulating…" : "Simulate"}</Button></div>
+        <div><Button variant="outline" size="sm" className={SECONDARY} disabled={busy || !writable} onClick={simulate}>{simulating ? <Loader2 className="size-4 animate-spin" /> : null}Simulate</Button></div>
         {simulation ? <div className="flex flex-wrap items-center gap-2 text-xs">
           <Badge variant={simulation.decision === "Allow" ? "outline" : "destructive"}>{simulation.decision}</Badge>
           {(simulation.matched ?? []).map((entry, index) => <code key={index} className="font-mono">{entry.effect} #{entry.index}</code>)}
-          {simulation.note ? <span className="text-muted-foreground">{simulation.note}</span> : null}
+          {simulation.note ? <span className="text-text-secondary">{simulation.note}</span> : null}
         </div> : null}
       </div>
     </SectionCard>
+    <Dialog open={confirmClear} onOpenChange={(open) => { if (!open) setConfirmClear(false); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Clear resource policy</DialogTitle>
+          <DialogDescription>Are you sure you want to remove the resource policy? From the next deployment, callers are no longer filtered by IP, connector or principal.</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setConfirmClear(false)}>Cancel</Button>
+          <Button className="bg-red-500/90 text-white hover:bg-red-500" disabled={busy} onClick={() => { setConfirmClear(false); clear(); }}><Trash2 className="size-4" />Clear</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>;
 }

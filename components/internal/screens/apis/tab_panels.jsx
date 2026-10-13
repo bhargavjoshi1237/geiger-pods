@@ -1,12 +1,12 @@
 "use client";
 
-// Data containers that mount the S06 presentational editors inside the API
-// detail tabs (C1 wiring). Each container owns loading/empty/error states and
-// the management-API calls; the editors stay pure.
+// Data containers that mount the presentational processing editors inside the
+// API detail tabs. Each container owns loading/empty/error states and the
+// management-API calls; the editors stay pure.
 
 import { useCallback, useEffect, useState } from "react";
 import { Database, Globe, MessageSquareWarning } from "lucide-react";
-import { EmptyState, LoadingArea, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, LoadingArea } from "@/components/internal/shared/screen_kit";
 import { Button } from "@geiger/ui/button";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
@@ -16,7 +16,13 @@ import { CorsEditor } from "../processing/cors_editor";
 import { ModelsTab } from "../processing/models_tab";
 import { GatewayResponsesTab } from "../processing/gateway_responses_tab";
 
-/** Models tab container (S06): list, create, update, delete via /models. */
+const RETRY_CLASS = "border-border bg-transparent text-muted-foreground hover:bg-surface-active hover:text-foreground";
+
+function Unavailable({ icon, title, error, onRetry }) {
+  return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={icon} title={title} description={error} action={<Button variant="outline" className={RETRY_CLASS} onClick={onRetry}>Retry</Button>} /></div>;
+}
+
+/** Models tab container: list, create, update, delete via /models. */
 export function ModelsPanel({ api }) {
   const { project } = useProject();
   const { can } = useRbac();
@@ -93,9 +99,9 @@ export function ModelsPanel({ api }) {
     }
   };
 
-  if (state.status === "loading") return <SectionCard><LoadingArea label="Loading models" className="py-10" /></SectionCard>;
+  if (state.status === "loading") return <LoadingArea panel label="Loading models" />;
   if (state.status === "error") {
-    return <SectionCard><EmptyState icon={Database} title="Models unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard>;
+    return <Unavailable icon={Database} title="Models unavailable" error={state.error} onRetry={refresh} />;
   }
   return <ModelsTab
     models={state.items}
@@ -108,7 +114,7 @@ export function ModelsPanel({ api }) {
   />;
 }
 
-/** CORS tab container (S06, HTTP): managed config via /cors. */
+/** CORS tab container (HTTP): managed config via /cors. */
 export function CorsPanel({ api }) {
   const { project } = useProject();
   const { can } = useRbac();
@@ -136,9 +142,9 @@ export function CorsPanel({ api }) {
     return () => { alive = false; };
   }, [project.id, apiRef]);
 
-  if (state.status === "loading") return <SectionCard><LoadingArea label="Loading CORS" className="py-10" /></SectionCard>;
+  if (state.status === "loading") return <LoadingArea panel label="Loading CORS" />;
   if (state.status === "error") {
-    return <SectionCard><EmptyState icon={Globe} title="CORS unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard>;
+    return <Unavailable icon={Globe} title="CORS unavailable" error={state.error} onRetry={refresh} />;
   }
 
   const save = async (cors) => {
@@ -171,7 +177,7 @@ export function CorsPanel({ api }) {
   />;
 }
 
-/** Gateway responses tab container (S06, REST): 21 types + customizations. */
+/** Gateway responses tab container (REST): 21 types + customizations. */
 export function GatewayResponsesPanel({ api }) {
   const { project } = useProject();
   const { can } = useRbac();
@@ -244,9 +250,9 @@ export function GatewayResponsesPanel({ api }) {
     }
   };
 
-  if (state.status === "loading") return <SectionCard><LoadingArea label="Loading gateway responses" className="py-10" /></SectionCard>;
+  if (state.status === "loading") return <LoadingArea panel label="Loading gateway responses" />;
   if (state.status === "error") {
-    return <SectionCard><EmptyState icon={MessageSquareWarning} title="Gateway responses unavailable" description={state.error} action={<Button variant="outline" onClick={load}>Retry</Button>} /></SectionCard>;
+    return <Unavailable icon={MessageSquareWarning} title="Gateway responses unavailable" error={state.error} onRetry={load} />;
   }
   return <GatewayResponsesTab
     types={state.types}

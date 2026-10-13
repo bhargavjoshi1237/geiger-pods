@@ -51,9 +51,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@geiger/ui/dropdown-menu";
-import { EmptyState, RollingNumber } from "@geiger/ui/screen-kit";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@geiger/ui/table";
 import { cn } from "@geiger/ui/lib/utils";
+import { MainScreenWrapper } from "@/components/internal/shared/screen_wrappers";
+import { EmptyState, RollingNumber } from "@/components/internal/shared/screen_kit";
 import { useProject } from "@/context/project-context";
 import { useWorkspaceNav, WorkspaceLink } from "@/context/workspace-nav-context";
 import FilterDropdown from "./filter_dropdown";
@@ -74,12 +75,15 @@ import {
   trafficMix,
 } from "./overview_data.mjs";
 
-// Theme-aware chart colors: the foreground ramp reads in light and dark.
-const INK = "var(--foreground)";
-const GRID = "var(--border)";
-const TICK = "var(--text-tertiary)";
-const CARD = "var(--surface-subtle)";
-const SERIES = [100, 74, 54, 38, 26, 18].map((pct) => `color-mix(in srgb, var(--foreground) ${pct}%, var(--surface-subtle))`);
+// Chart inks resolve per theme through CSS vars set on WidgetShell (same ramp as Events).
+const CHART_THEME_VARS =
+  "[--ov-ink:#18181b] [--ov-bg:#f9fafb] [--ov-grid:#e4e4e7] [--ov-tick:#71717a] [--ov-s2:#52525b] [--ov-s3:#a1a1aa] [--ov-s4:#d4d4d8] [--ov-s5:#e4e4e7] " +
+  "dark:[--ov-ink:#ffffff] dark:[--ov-bg:#161616] dark:[--ov-grid:#2a2a2a] dark:[--ov-tick:#a3a3a3] dark:[--ov-s2:#d4d4d4] dark:[--ov-s3:#a3a3a3] dark:[--ov-s4:#737373] dark:[--ov-s5:#525252]";
+const INK = "var(--ov-ink)";
+const GRID = "var(--ov-grid)";
+const TICK = "var(--ov-tick)";
+const CARD = "var(--ov-bg)";
+const SERIES = ["var(--ov-ink)", "var(--ov-s2)", "var(--ov-s3)", "var(--ov-s4)", "var(--ov-s5)"];
 
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 
@@ -155,7 +159,7 @@ function useOverviewData(demo, projectId) {
 }
 
 function WidgetShell({ children, className, contentClassName }) {
-  return <Card className={cn("h-full gap-0 overflow-hidden rounded-xl border-border bg-surface-subtle py-0 text-foreground", className)}>
+  return <Card className={cn("h-full gap-0 overflow-hidden rounded-xl border-border bg-surface-subtle py-0 text-foreground", CHART_THEME_VARS, className)}>
     <CardContent className={cn("h-full p-4", contentClassName)}>{children}</CardContent>
   </Card>;
 }
@@ -171,16 +175,16 @@ function WidgetHeader({ title, subtitle, action }) {
 }
 
 function ApiScopeSelect({ rows, selected, onChange }) {
-  const clip = (text) => (text.length > 8 ? `${text.slice(0, 8)}…` : text);
+  const clip = (text) => (text.length > 5 ? `${text.slice(0, 5)}…` : text);
   const label = selected.length === 0
     ? "All"
     : selected.length === 1 ? clip(rows.find((row) => row.id === selected[0])?.name ?? "1 API") : `${selected.length} APIs`;
   const toggle = (id) => onChange(selected.includes(id) ? selected.filter((value) => value !== id) : [...selected, id]);
   return <DropdownMenu>
     <DropdownMenuTrigger asChild>
-      <Button variant="outline" size="sm" aria-label="Filter by API" disabled={!rows.length} className="border-border bg-surface-card text-foreground hover:bg-surface-active">
+      <Button variant="outline" aria-label="Filter by API" disabled={!rows.length} className="h-9 gap-2 border-border bg-surface-card text-foreground hover:bg-surface-active">
         <Network className="size-4 text-muted-foreground" />
-        <span className="max-w-30 truncate">{label}</span>
+        <span className="max-w-[160px] truncate">{label}</span>
         <ChevronDown className="size-4 text-muted-foreground" />
       </Button>
     </DropdownMenuTrigger>
@@ -194,22 +198,23 @@ function ApiScopeSelect({ rows, selected, onChange }) {
   </DropdownMenu>;
 }
 
-// StatsBar layout with tone separate from direction: more errors is an arrow up, in red.
+// Same markup as screen_kit's StatsBar, except tone is separate from direction:
+// more errors is an arrow up, in red (StatsBar colours by direction only).
 function OverviewStats({ stats }) {
   return <Card className="gap-0 overflow-hidden rounded-xl border-border bg-surface-subtle py-0 text-foreground">
     <CardContent className="p-0">
       <div className="grid grid-cols-2 md:grid-cols-4">
         {stats.map((stat, index) => {
           const Arrow = stat.direction === "down" ? ArrowDownRight : ArrowUpRight;
-          return <div key={stat.label} className={cn("border-border p-4", index % 2 !== 0 && "border-l", index >= 2 && "border-t", "md:border-t-0 md:border-l-0", index > 0 && "md:border-l")}>
+          return <div key={stat.label} className={cn("border-border p-4", index % 2 !== 0 && "border-l", index >= 2 && "border-t", "md:border-l-0 md:border-t-0", index > 0 && "md:border-l")}>
             <span className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">{stat.label}</span>
             <div className="mt-1 flex flex-col items-start gap-1 sm:flex-row sm:items-end sm:gap-2">
-              <RollingNumber value={stat.value} className="text-2xl font-bold leading-none text-foreground" />
+              <RollingNumber value={stat.value} className="text-2xl font-bold leading-none text-foreground dark:text-white" />
               {stat.delta ? <span className={cn("inline-flex items-center gap-0.5 text-xs font-medium sm:mb-0.5", stat.tone === "good" && "text-emerald-600 dark:text-emerald-400", stat.tone === "bad" && "text-red-600 dark:text-red-400", stat.tone === "neutral" && "text-text-secondary")}>
-                <Arrow className="size-3" />{stat.delta}
+                <Arrow className="h-3 w-3" />{stat.delta}
               </span> : null}
             </div>
-            <span className="mt-1 block text-[11px] text-text-tertiary">{stat.footer}</span>
+            {stat.footer ? <span className="mt-1 block text-[11px] capitalize text-text-tertiary">{stat.footer}</span> : null}
           </div>;
         })}
       </div>
@@ -225,7 +230,7 @@ function TrafficTrendWidget({ pending, dashboard, rows }) {
   const hasTraffic = (dashboard.daily ?? []).some((cell) => cell.requests > 0);
   const action = <div className="flex items-center gap-2">
     <ApiScopeSelect rows={rows} selected={scope} onChange={setScope} />
-    <FilterDropdown label="Trend metric" value={metric} onValueChange={setMetric} options={TREND_METRICS} />
+    <FilterDropdown label="Trend metric" value={metric} onValueChange={setMetric} options={TREND_METRICS} height="h-9" />
   </div>;
 
   // While the fetch is in flight the series is all zeros, so the line sits on
@@ -248,7 +253,7 @@ function TrafficTrendWidget({ pending, dashboard, rows }) {
           <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: TICK, fontSize: 11 }} />
           <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" hideLabel formatter={(value) => <span className="font-medium tabular-nums text-foreground">{formatCount(value)}</span>} />} />
           <Line dataKey="value" type="monotone" stroke={INK} strokeWidth={2} dot={{ fill: INK, r: 3 }} activeDot={{ r: 5 }}>
-            <LabelList dataKey="value" position="top" offset={10} fill={INK} fontSize={11} formatter={(value) => compact.format(value)} />
+            <LabelList dataKey="value" position="top" offset={10} className="fill-foreground dark:fill-[#ededed]" fontSize={11} formatter={(value) => compact.format(value)} />
           </Line>
         </LineChart>
       </ChartContainer>
@@ -271,7 +276,7 @@ function TrafficMixWidget({ pending, rows }) {
     return <WidgetShell contentClassName="flex flex-col">
       <WidgetHeader title="Traffic by API" subtitle="Share of requests per API." />
       <div className="relative mt-4 flex min-h-0 w-full flex-1 items-center justify-center">
-        <div className="size-[156px] rounded-full border-[34px] border-border" />
+        <div className="h-[156px] w-[156px] rounded-full border-[34px] border-border" />
         <div className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center">
           <span className="text-3xl font-bold leading-none text-foreground">0</span>
           <span className="mt-1 text-xs font-medium text-muted-foreground">0% share</span>
@@ -291,16 +296,16 @@ function TrafficMixWidget({ pending, rows }) {
   }
 
   return <WidgetShell contentClassName="flex flex-col">
-    <WidgetHeader title="Traffic by API" subtitle="Share of requests per API." action={<FilterDropdown label="Highlighted API" value={activeKey} onValueChange={setPicked} options={mix.map((item) => ({ value: item.key, label: item.label }))} />} />
+    <WidgetHeader title="Traffic by API" subtitle="Share of requests per API." action={<div className="flex items-center gap-2"><FilterDropdown label="Highlighted API" value={activeKey} onValueChange={setPicked} options={mix.map((item) => ({ value: item.key, label: item.label }))} height="h-9" /></div>} />
     <div className="relative mt-4 flex min-h-0 w-full flex-1 items-center justify-center">
-      <ChartContainer config={config} className="mx-auto size-[220px] max-w-full">
+      <ChartContainer config={config} className="mx-auto h-[220px] w-[220px] max-w-full">
         <PieChart>
           <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="key" />} />
           <Pie data={chartData} dataKey="value" nameKey="key" cx="50%" cy="50%" innerRadius={44} outerRadius={78} activeIndex={activeIndex} activeShape={{ outerRadius: 88 }} stroke={CARD} strokeWidth={2} />
         </PieChart>
       </ChartContainer>
       <div className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center">
-        <span className="text-2xl font-bold leading-none text-foreground">{compact.format(active?.value ?? 0)}</span>
+        <span className="text-3xl font-bold leading-none text-foreground">{compact.format(active?.value ?? 0)}</span>
         <span className="mt-1 text-xs font-medium text-muted-foreground">{total > 0 ? Math.round(((active?.value ?? 0) / total) * 100) : 0}% share</span>
       </div>
     </div>
@@ -327,7 +332,7 @@ function OutcomesWidget({ totals }) {
       title="Request Outcomes"
       subtitle="Share of requests by how the gateway answered."
       action={<div className="flex shrink-0 flex-col items-end">
-        <span className="text-3xl font-bold leading-none text-foreground">{share(succeeded)}%</span>
+        <span className="text-3xl font-bold leading-none text-foreground dark:text-white">{share(succeeded)}%</span>
         <span className="mt-1 text-[11px] text-text-secondary">succeeded</span>
       </div>}
     />
@@ -340,7 +345,7 @@ function OutcomesWidget({ totals }) {
           </span>} />} />
           <PolarGrid stroke={GRID} />
           <PolarAngleAxis dataKey="short" tick={{ fill: TICK, fontSize: 11 }} />
-          <Radar dataKey="share" stroke={INK} strokeWidth={2} fill={INK} fillOpacity={0.35} dot={{ r: 4, fill: INK, fillOpacity: 1, stroke: CARD, strokeWidth: 1.5 }} />
+          <Radar dataKey="share" stroke={INK} strokeWidth={2} fill={INK} fillOpacity={0.5} dot={{ r: 4, fill: INK, fillOpacity: 1, stroke: CARD, strokeWidth: 1.5 }} />
         </RadarChart>
       </ChartContainer>
     </div>
@@ -357,11 +362,11 @@ function GaugeWidget({ title, subtitle, caption, rows, compute }) {
     <div className="mt-1 flex min-h-0 flex-1 items-center justify-center">
       <ChartContainer config={{ value: { label: caption, color: INK } }} className="mx-auto aspect-square h-full max-h-[190px]">
         <RadialBarChart data={data} startAngle={90} endAngle={90 - (clamped / 100) * 360} innerRadius={72} outerRadius={104}>
-          <PolarGrid gridType="circle" radialLines={false} stroke="none" polarRadius={[78, 66]} className="first:fill-surface-card last:fill-surface-subtle" />
+          <PolarGrid gridType="circle" radialLines={false} stroke="none" polarRadius={[78, 66]} className="first:fill-[#f4f4f5] last:fill-[#fafafa] dark:first:fill-[#202020] dark:last:fill-[#1a1a1a]" />
           <RadialBar dataKey="value" cornerRadius={8} />
           <PolarRadiusAxis tick={false} tickLine={false} axisLine={false}>
             <Label content={({ viewBox }) => (viewBox && "cx" in viewBox && "cy" in viewBox ? <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
-              <tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground text-3xl font-bold">{clamped}%</tspan>
+              <tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground text-3xl font-bold dark:fill-white">{clamped}%</tspan>
               <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 22} className="fill-muted-foreground text-xs font-medium">{caption}</tspan>
             </text> : null)} />
           </PolarRadiusAxis>
@@ -386,7 +391,7 @@ function TopApisTable({ demo, pending, rows }) {
       <WidgetHeader title="Top APIs" subtitle={`Ranked by traffic, errors and latency over the last ${DASHBOARD_DAYS} days.`} />
       <div className="flex items-center gap-2">
         <ApiScopeSelect rows={rows} selected={scope} onChange={setScope} />
-        <FilterDropdown label="Sort APIs by" value={sortBy} onValueChange={setSortBy} options={SORT_OPTIONS} />
+        <FilterDropdown label="Sort APIs by" value={sortBy} onValueChange={setSortBy} options={SORT_OPTIONS} height="h-9" />
       </div>
     </div>
     <div className="overflow-hidden rounded-2xl border border-border bg-surface-card">
@@ -420,16 +425,16 @@ function TopApisTable({ demo, pending, rows }) {
                 <TableCell><Badge variant="outline">{PROTOCOL_LABELS[row.protocol] ?? row.protocol}</Badge></TableCell>
                 <TableCell>
                   <div className="w-[140px] space-y-1.5">
-                    <div className="h-1.5 overflow-hidden rounded-full bg-surface-hover"><div className="h-full rounded-full bg-foreground" style={{ width: `${Math.min(100, pct)}%` }} /></div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-surface-hover"><div className="h-full rounded-full bg-foreground dark:bg-[#ededed]" style={{ width: `${Math.min(100, pct)}%` }} /></div>
                     <p className="text-xs text-text-secondary">{row.requests > 0 ? `${pct}%` : "—"}</p>
                   </div>
                 </TableCell>
-                <TableCell className="text-right font-semibold tabular-nums text-foreground">{formatCount(row.requests)}</TableCell>
+                <TableCell className="text-right font-semibold tabular-nums text-foreground dark:text-white">{formatCount(row.requests)}</TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">{formatLatency(row.p90LatencyMs)}</TableCell>
-                <TableCell><span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap font-medium", meta.className)}><HealthIcon className="size-3.5" />{meta.label}</span></TableCell>
+                <TableCell><span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap font-medium", meta.className)}><HealthIcon className="h-3.5 w-3.5" />{meta.label}</span></TableCell>
                 <TableCell className="text-right">
-                  <Button asChild variant="ghost" size="icon-sm" className="text-muted-foreground hover:bg-surface-active hover:text-foreground">
-                    <WorkspaceLink section={demo ? "apis" : `apis/${encodeURIComponent(row.ref)}`} aria-label={`Open ${row.name}`}><ArrowUpRight className="size-4" /></WorkspaceLink>
+                  <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:bg-surface-active hover:text-foreground">
+                    <WorkspaceLink section={demo ? "apis" : `apis/${encodeURIComponent(row.ref)}`} aria-label={`Open ${row.name}`}><ArrowUpRight className="h-4 w-4" /></WorkspaceLink>
                   </Button>
                 </TableCell>
               </TableRow>;
@@ -440,31 +445,29 @@ function TopApisTable({ demo, pending, rows }) {
   </div>;
 }
 
-function AttentionCard({ demo, items }) {
+function AttentionCard({ items }) {
   const sorted = [...items].sort((a, b) => URGENCY_ORDER.indexOf(a.urgency) - URGENCY_ORDER.indexOf(b.urgency));
   const open = items.filter((item) => item.count > 0).length;
   return <WidgetShell contentClassName="flex flex-col">
     <WidgetHeader
       title="Needs Attention"
       subtitle="Alarms, unhealthy APIs and limits across this project."
-      action={<Badge className="shrink-0">{open} open</Badge>}
+      action={<span className="shrink-0 rounded-md border border-border bg-surface-card px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{open} open</span>}
     />
     <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {sorted.map((item) => {
         const Icon = ATTENTION_ICONS[item.key];
-        // The playground's in-memory nav only knows top-level sections.
-        const section = demo ? item.section.split("/")[0] : item.section;
-        return <WorkspaceLink key={item.key} section={section} className="group flex items-center gap-3.5 rounded-xl p-3.5 text-left transition-colors hover:bg-surface-card">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-card text-muted-foreground"><Icon className="size-[18px]" /></div>
+        return <WorkspaceLink key={item.key} section={item.section} className="group flex cursor-pointer items-center gap-3.5 rounded-xl p-3.5 text-left transition-colors hover:bg-surface-card">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-card text-muted-foreground"><Icon className="h-[18px] w-[18px]" /></div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="truncate text-sm font-semibold text-foreground">{item.label}</span>
-              <Badge className="shrink-0 px-1.5 text-text-secondary">{URGENCY_LABELS[item.urgency]}</Badge>
+              <span className="shrink-0 rounded-md border border-border bg-surface-card px-1.5 py-0.5 text-[10px] font-medium text-text-secondary">{URGENCY_LABELS[item.urgency]}</span>
             </div>
             <p className="mt-0.5 truncate text-xs text-text-secondary">{item.hint}</p>
           </div>
-          <span className={cn("shrink-0 text-xl font-bold tabular-nums", item.count > 0 ? "text-foreground" : "text-text-tertiary")}>{formatCount(item.count)}</span>
-          <ChevronRight className="size-3 shrink-0 text-text-secondary transition-colors group-hover:text-foreground" />
+          <span className={cn("shrink-0 text-xl font-bold tabular-nums", item.count > 0 ? "text-foreground dark:text-white" : "text-text-tertiary")}>{formatCount(item.count)}</span>
+          <ChevronRight className="h-3 w-3 shrink-0 text-text-secondary transition-colors group-hover:text-foreground" />
         </WorkspaceLink>;
       })}
     </div>
@@ -501,17 +504,23 @@ export function PodsOverview() {
     return { pct: Math.round(((totals.cacheHits ?? 0) / lookups) * 100), footnote: `${formatCount(totals.cacheHits)} of ${formatCount(lookups)} lookups` };
   }, [dashboard]);
 
-  return <div className="mx-auto w-full space-y-8 px-2 py-4 lg:max-w-[85%] lg:px-0">
-    <div className="mt-2 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-      <div>
-        <h1 className="text-center text-2xl font-bold tracking-tight text-foreground md:text-left">Pods Overview</h1>
-        <p className="mt-1 text-center text-sm text-muted-foreground md:text-left">Track traffic, errors, latency and throttling across every API in {project.name}.</p>
-      </div>
-      <div className="flex w-full md:w-auto">
-        {summary.map((stat, index) => <div key={stat.label} className={cn("flex flex-1 flex-col items-center md:flex-none", index > 0 && "border-l border-border", index === 0 ? "md:pr-8" : index === summary.length - 1 ? "md:pl-8" : "md:px-8")}>
-          <span className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">{stat.label}</span>
-          <RollingNumber value={stat.value} className="mt-0.5 text-2xl font-bold text-foreground" />
-        </div>)}
+  return <MainScreenWrapper>
+    <div className="mt-2">
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div>
+          <div className="flex w-full items-center justify-center gap-3 text-center md:w-auto md:justify-start md:text-left">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground dark:text-white">Pods Overview</h1>
+          </div>
+          <p className="mt-1 text-center text-sm text-muted-foreground md:text-left">Track traffic, errors, latency, and throttling across every API in {project.name}.</p>
+        </div>
+        <div className="w-full md:w-auto">
+          <div className="flex w-full md:w-auto md:gap-0">
+            {summary.map((stat, index) => <div key={stat.label} className={cn("flex flex-1 flex-col items-center md:flex-none", index > 0 && "border-l border-border", index === 0 ? "md:pr-8" : index === summary.length - 1 ? "md:pl-8" : "md:px-8")}>
+              <span className="text-[11px] font-medium uppercase tracking-wider text-text-secondary">{stat.label}</span>
+              <RollingNumber value={stat.value} className="mt-0.5 text-2xl font-bold text-foreground dark:text-white" />
+            </div>)}
+          </div>
+        </div>
       </div>
     </div>
 
@@ -533,6 +542,6 @@ export function PodsOverview() {
 
     <TopApisTable demo={demo} pending={pending} rows={rows} />
 
-    <AttentionCard demo={demo} items={attention} />
-  </div>;
+    <AttentionCard items={attention} />
+  </MainScreenWrapper>;
 }

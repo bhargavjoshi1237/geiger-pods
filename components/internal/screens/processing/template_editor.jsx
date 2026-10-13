@@ -1,29 +1,32 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { SectionCard } from "@geiger/ui/screen-kit";
+import { FlaskConical, Wand2 } from "lucide-react";
+import { Field } from "@/components/internal/shared/screen_kit";
 import { Button } from "@geiger/ui/button";
-import { Label } from "@geiger/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { Textarea } from "@geiger/ui/textarea";
 import { toast } from "sonner";
+
+const SECONDARY = "border-border bg-transparent text-muted-foreground hover:bg-surface-active hover:text-foreground";
 
 /**
  * VTL template editor: monospace editing surface, a "Test template" box
  * that evaluates the template against a sample body/params/context, and a
  * "Generate from model" helper that scaffolds `$input.path` selections.
- * Standalone — the orchestrator mounts it in the REST method panel later.
  *
- * `evaluate` is injected by the host (server render in production); without
- * it the test box explains that evaluation needs the gateway build.
+ * `evaluate` is injected by the host; without it the test box explains that
+ * evaluation isn't available in this view.
  */
-export function TemplateEditor({ contentType, value, onChange, evaluate, models = [] }) {
+export function TemplateEditor({ contentType, value, onChange, evaluate, models = [], action }) {
   const [sampleBody, setSampleBody] = useState('{"name": " Ada "}');
   const [result, setResult] = useState(null);
+  const [modelName, setModelName] = useState(null);
+  const scaffoldModel = models.find((model) => model.name === modelName) ?? models[0];
 
   async function runTest() {
     if (!evaluate) {
-      toast.error("Template evaluation needs the gateway build (S05 wiring).");
+      toast.error("Template testing isn't available in this view yet.");
       return;
     }
     try {
@@ -36,38 +39,40 @@ export function TemplateEditor({ contentType, value, onChange, evaluate, models 
   const tokens = useMemo(() => highlightTokens(value ?? ""), [value]);
 
   return (
-    <SectionCard title={contentType ? `Mapping template — ${contentType}` : "Mapping template"}>
-      <div className="grid gap-3">
-        <div>
-          <Label htmlFor="template-body">Template (Velocity-compatible)</Label>
-          <Textarea id="template-body" className="font-mono text-xs" rows={12} value={value ?? ""} onChange={(event) => onChange?.(event.target.value)} spellCheck={false} />
-          <TemplatePreview tokens={tokens} />
+    <div className="space-y-4 rounded-xl border border-border bg-surface-card p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">Mapping template{contentType ? <> · <span className="font-mono">{contentType}</span></> : null}</p>
+          <p className="mt-0.5 text-xs text-text-secondary">Velocity-compatible template rendered for this content type.</p>
         </div>
-        {models.length > 0 ? (
-          <div>
-            <Label htmlFor="template-model">Generate from model</Label>
-            <div className="flex flex-wrap items-center gap-2">
-              <Select defaultValue={models[0]?.name}>
-                <SelectTrigger id="template-model" className="w-auto min-w-40 flex-1" data-testid="template-model-select"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {models.map((model) => <SelectItem key={model.name} value={model.name}>{model.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Button type="button" onClick={() => onChange?.(generateFromModel(models[0]))}>Insert scaffold</Button>
-            </div>
-          </div>
-        ) : null}
-        <div>
-          <Label htmlFor="template-sample">Test template — sample body</Label>
-          <Textarea id="template-sample" className="font-mono text-xs" rows={4} value={sampleBody} onChange={(event) => setSampleBody(event.target.value)} spellCheck={false} />
-          <div className="mt-2 flex gap-2">
-            <Button type="button" onClick={runTest}>Test template</Button>
-          </div>
-          {result?.output !== undefined ? <pre className="mt-2 overflow-auto rounded bg-muted p-2 font-mono text-xs">{result.output}</pre> : null}
-          {result?.error ? <p className="mt-2 text-sm text-red-600">{result.error}</p> : null}
-        </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
       </div>
-    </SectionCard>
+      <Field label="Template" htmlFor="template-body">
+        <Textarea id="template-body" className="font-mono text-xs" rows={12} value={value ?? ""} onChange={(event) => onChange?.(event.target.value)} spellCheck={false} />
+        <TemplatePreview tokens={tokens} />
+      </Field>
+      {models.length > 0 ? (
+        <Field label="Generate from model" htmlFor="template-model">
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={scaffoldModel?.name} onValueChange={setModelName}>
+              <SelectTrigger id="template-model" className="w-auto min-w-40 flex-1" data-testid="template-model-select"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {models.map((model) => <SelectItem key={model.name} value={model.name}>{model.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button type="button" variant="outline" size="sm" className={`h-9 ${SECONDARY}`} onClick={() => onChange?.(generateFromModel(scaffoldModel))}><Wand2 className="size-4" />Insert Scaffold</Button>
+          </div>
+        </Field>
+      ) : null}
+      <div className="space-y-2 border-t border-border pt-4">
+        <Field label="Test with a sample body" htmlFor="template-sample">
+          <Textarea id="template-sample" className="font-mono text-xs" rows={4} value={sampleBody} onChange={(event) => setSampleBody(event.target.value)} spellCheck={false} />
+        </Field>
+        <Button type="button" variant="outline" size="sm" className={SECONDARY} onClick={runTest}><FlaskConical className="size-4" />Test Template</Button>
+        {result?.output !== undefined ? <pre className="overflow-auto rounded-lg border border-border bg-surface-subtle p-3 font-mono text-xs text-foreground">{result.output}</pre> : null}
+        {result?.error ? <p className="text-sm text-destructive-text">{result.error}</p> : null}
+      </div>
+    </div>
   );
 }
 
@@ -98,9 +103,9 @@ export function highlightTokens(template) {
 export function TemplatePreview({ tokens = [] }) {
   if (tokens.length === 0) return null;
   return (
-    <pre className="mt-2 overflow-auto rounded bg-muted p-2 font-mono text-xs" aria-label="Syntax preview">
+    <pre className="mt-2 overflow-auto rounded-lg border border-border bg-surface-subtle p-3 font-mono text-xs text-foreground" aria-label="Syntax preview">
       {tokens.map((token, index) => (
-        <span key={index} className={token.kind === "ref" ? "text-blue-600" : token.kind === "directive" ? "text-purple-700" : undefined}>
+        <span key={index} className={token.kind === "ref" ? "text-blue-600 dark:text-blue-400" : token.kind === "directive" ? "text-purple-700 dark:text-purple-400" : undefined}>
           {token.value}
         </span>
       ))}

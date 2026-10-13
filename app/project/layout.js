@@ -8,7 +8,7 @@ export const metadata = { title: "Workspace", robots: { index: false, follow: fa
 
 export default function ProjectLayout({ children }) {
   return <ProjectProvider><RbacProvider><RouteWorkspaceNav>
-    <SidebarProvider className="!flex h-[100dvh] w-full min-w-0 flex-col overflow-hidden bg-background font-sans text-foreground selection:bg-surface-strong" style={{ flexDirection: "column" }}>
+    <SidebarProvider className="flex-col !flex h-[100dvh] w-full min-w-0 overflow-hidden bg-background text-foreground font-sans selection:bg-surface-strong" style={{ flexDirection: "column" }}>
       <WorkspaceShell>{children}</WorkspaceShell>
     </SidebarProvider>
   </RouteWorkspaceNav></RbacProvider></ProjectProvider>;

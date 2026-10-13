@@ -1,14 +1,12 @@
 "use client";
 
-// Export dialog (S13 part A): pick stage, type, format, extensions and
-// download the document generated from the deployed artifact.
+// Export: pick stage, type, format, extensions and download the document
+// generated from the deployed artifact.
 
 import { useState } from "react";
-import { Download } from "lucide-react";
-import { EmptyState, Field, SectionCard } from "@geiger/ui/screen-kit";
+import { Download, Loader2, Rocket } from "lucide-react";
+import { EmptyState, Field, SectionCard, SettingRow, SettingsList } from "@/components/internal/shared/screen_kit";
 import { Button } from "@geiger/ui/button";
-import { Checkbox } from "@geiger/ui/checkbox";
-import { Label } from "@geiger/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
 import { toast } from "sonner";
 import { useProject } from "@/context/project-context";
@@ -25,6 +23,10 @@ function download(filename, text, contentType) {
   URL.revokeObjectURL(url);
 }
 
+const PRIMARY = "bg-primary text-primary-foreground hover:bg-primary/90";
+
+const HEADER = { title: "Export", description: "Download an OpenAPI or Postman document built from a stage's deployed snapshot, never the draft." };
+
 export function ExportDialog({ api, stages }) {
   const { project } = useProject();
   const { can } = useRbac();
@@ -38,10 +40,14 @@ export function ExportDialog({ api, stages }) {
   const canExport = can("pods.api.export");
 
   if (!canExport) {
-    return <SectionCard><EmptyState icon={Download} title="Access unavailable" description="Your current team access does not allow exports." /></SectionCard>;
+    return <SectionCard bare className="pt-4" {...HEADER}>
+      <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={Download} title="Access unavailable" description="Your current team access does not allow exports." /></div>
+    </SectionCard>;
   }
   if (!stages || stages.length === 0) {
-    return <SectionCard><EmptyState icon={Download} title="No stages yet" description="Deploy the API to a stage before exporting." /></SectionCard>;
+    return <SectionCard bare className="pt-4" {...HEADER}>
+      <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={Rocket} title="No stages yet" description="Deploy the API to a stage before exporting." /></div>
+    </SectionCard>;
   }
 
   const onExport = async () => {
@@ -60,9 +66,9 @@ export function ExportDialog({ api, stages }) {
     }
   };
 
-  return (
-    <SectionCard>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+  return <SectionCard bare className="pt-4" {...HEADER}>
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Stage" htmlFor="export-stage">
           <Select value={stage} onValueChange={setStage}>
             <SelectTrigger id="export-stage"><SelectValue /></SelectTrigger>
@@ -87,7 +93,7 @@ export function ExportDialog({ api, stages }) {
             </SelectContent>
           </Select>
         </Field>
-        <Field label="Extensions" htmlFor="export-extensions">
+        <Field label="Extensions" htmlFor="export-extensions" hint="AWS extensions let the file round-trip into AWS API Gateway.">
           <Select value={extensions} onValueChange={setExtensions}>
             <SelectTrigger id="export-extensions"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -99,14 +105,17 @@ export function ExportDialog({ api, stages }) {
           </Select>
         </Field>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
-          <Checkbox id="export-include-docs" checked={includeDocs} onCheckedChange={(value) => setIncludeDocs(value === true)} />
-          <Label htmlFor="export-include-docs" className="font-normal">Include docs</Label>
-        </div>
-        <Button disabled={busy} onClick={onExport}>Download</Button>
+      <SettingsList className="rounded-xl border border-border bg-surface-card p-4">
+        <SettingRow
+          title="Include documentation"
+          description="Embed the stage's documentation parts in the exported file."
+          checked={includeDocs}
+          onCheckedChange={(value) => setIncludeDocs(value === true)}
+        />
+      </SettingsList>
+      <div className="flex justify-end">
+        <Button size="sm" className={PRIMARY} disabled={busy} onClick={onExport}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="size-4" />}{busy ? "Exporting…" : "Download"}</Button>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">Exports render the deployed artifact, never the draft.</p>
-    </SectionCard>
-  );
+    </div>
+  </SectionCard>;
 }

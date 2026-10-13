@@ -1,9 +1,9 @@
 "use client";
 
-// SDKs panel (S13 part C): language picker, config form, generate + download.
+// SDKs panel: language picker, config form, generate + download.
 import { useState } from "react";
 import { Loader2, Package } from "lucide-react";
-import { EmptyState, ScreenHeader, SectionCard } from "@geiger/ui/screen-kit";
+import { EmptyState, Field, SectionCard } from "@/components/internal/shared/screen_kit";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
@@ -13,6 +13,11 @@ import { useRbac } from "@/context/rbac-context";
 import { fetchApis } from "../apis/api_list";
 
 const LANGUAGES = ["javascript", "typescript", "python", "java", "android", "swift", "ruby", "go", "kotlin"];
+const LANGUAGE_LABEL = { javascript: "JavaScript", typescript: "TypeScript", python: "Python", java: "Java", android: "Android", swift: "Swift", ruby: "Ruby", go: "Go", kotlin: "Kotlin" };
+
+const PRIMARY = "bg-primary text-primary-foreground hover:bg-primary/90";
+
+const HEADER = { title: "Client SDK", description: "Generate a client from a deployed stage, never the draft. TypeScript compiles with tsc; other languages render through OpenAPI Generator." };
 
 export function SdkPanel({ api, stages }) {
   const { project } = useProject();
@@ -57,31 +62,40 @@ export function SdkPanel({ api, stages }) {
   };
 
   if (!canGenerate) {
-    return <SectionCard><EmptyState icon={Package} title="Access unavailable" description="Your current team access does not allow SDK generation." /></SectionCard>;
+    return <SectionCard bare {...HEADER}>
+      <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={Package} title="Access unavailable" description="Your current team access does not allow SDK generation." /></div>
+    </SectionCard>;
   }
 
-  return (
-    <div className="space-y-4">
-      <ScreenHeader title="SDKs" description="Generate a client from the deployed stage (never the draft). TypeScript compiles with tsc; extended languages render via OpenAPI Generator." />
-      <SectionCard>
-        {(stages ?? []).length === 0
-          ? <EmptyState icon={Package} title="No stages yet" description="Deploy a stage first, then generate an SDK from it." />
-          : (
-            <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
+  return <div className="space-y-8">
+    <SectionCard bare {...HEADER}>
+      {(stages ?? []).length === 0
+        ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={Package} title="No stages yet" description="Deploy a stage first, then generate an SDK from it." /></div>
+        : <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Stage" htmlFor="sdk-stage" hint="The deployed snapshot the client is built from.">
               <Select value={stageName} onValueChange={setStageName}>
-                <SelectTrigger className="sm:w-40" aria-label="Stage"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="sdk-stage" aria-label="Stage"><SelectValue /></SelectTrigger>
                 <SelectContent>{(stages ?? []).map((entry) => <SelectItem key={entry.name} value={entry.name}>{entry.name}</SelectItem>)}</SelectContent>
               </Select>
+            </Field>
+            <Field label="Language" htmlFor="sdk-language">
               <Select value={language} onValueChange={setLanguage}>
-                <SelectTrigger className="sm:w-40" aria-label="Language"><SelectValue /></SelectTrigger>
-                <SelectContent>{LANGUAGES.map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}</SelectContent>
+                <SelectTrigger id="sdk-language" aria-label="Language"><SelectValue /></SelectTrigger>
+                <SelectContent>{LANGUAGES.map((entry) => <SelectItem key={entry} value={entry}>{LANGUAGE_LABEL[entry] ?? entry}</SelectItem>)}</SelectContent>
               </Select>
-              <Input value={packageName} onChange={(event) => setPackageName(event.target.value)} placeholder="package name" className="sm:w-48" aria-label="Package name" spellCheck={false} />
-              <Input value={version} onChange={(event) => setVersion(event.target.value)} placeholder="0.1.0" className="sm:w-24" aria-label="Version" spellCheck={false} />
-              <Button className="col-span-2 sm:col-span-1" disabled={busy} onClick={generate}>{busy ? <Loader2 className="size-4 animate-spin" aria-label="Generating" /> : "Generate & download"}</Button>
-            </div>
-          )}
-      </SectionCard>
-    </div>
-  );
+            </Field>
+            <Field label="Package name" htmlFor="sdk-package">
+              <Input id="sdk-package" value={packageName} onChange={(event) => setPackageName(event.target.value)} placeholder="package name" className="font-mono" aria-label="Package name" spellCheck={false} />
+            </Field>
+            <Field label="Version" htmlFor="sdk-version">
+              <Input id="sdk-version" value={version} onChange={(event) => setVersion(event.target.value)} placeholder="0.1.0" className="font-mono" aria-label="Version" spellCheck={false} />
+            </Field>
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" className={PRIMARY} disabled={busy} onClick={generate}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="size-4" />}{busy ? "Generating…" : "Generate & Download"}</Button>
+          </div>
+        </div>}
+    </SectionCard>
+  </div>;
 }

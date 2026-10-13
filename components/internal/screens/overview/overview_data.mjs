@@ -127,7 +127,7 @@ export function buildAttention({ alarms = [], rows = [], dashboard }) {
     { key: "alarms", label: "Alarms firing", hint: firing.length ? firing.slice(0, 2).map((alarm) => alarm.name).join(", ") : "Nothing firing", count: firing.length, urgency: "urgent", section: "monitoring/alarms" },
     { key: "failing", label: "Failing APIs", hint: "5% or more server errors", count: failing.length, urgency: "urgent", section: "monitoring" },
     { key: "degraded", label: "Degraded APIs", hint: "Elevated error rates", count: degraded.length, urgency: "soon", section: "monitoring" },
-    { key: "throttled", label: "Throttled", hint: "Rate limits or quotas hit", count: throttled, urgency: "soon", section: "usage" },
+    { key: "throttled", label: "Throttled", hint: "Rate limits or quotas hit", count: throttled, urgency: "soon", section: "usage-plans" },
     { key: "idle", label: "Idle APIs", hint: `No traffic in the last ${plural(dashboard?.days ?? DASHBOARD_DAYS, "day")}`, count: idle.length, urgency: "routine", section: "apis" },
     { key: "waiting", label: "Awaiting data", hint: "Alarms with no datapoints yet", count: waiting.length, urgency: "routine", section: "monitoring/alarms" },
   ];
