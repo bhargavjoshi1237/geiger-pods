@@ -147,7 +147,7 @@ export function StageLoggingTab({ apiId, stageName }) {
     }
   };
 
-  if (state.status === "loading") return <LoadingArea panel label="Loading logging settings" />;
+  if (state.status === "loading") return <LoadingArea label="Loading logging settings" />;
   if (state.status === "error") {
     return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={ScrollText}

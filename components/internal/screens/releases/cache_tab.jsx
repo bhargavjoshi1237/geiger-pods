@@ -76,7 +76,7 @@ export function CacheTab({ api, stage, onChanged }) {
   if (!can("pods.apis.view")) {
     return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={DatabaseZap} title="Access unavailable" description="Your current team access does not allow this screen." /></div>;
   }
-  if (state.status === "loading") return <LoadingArea panel label="Loading cache settings" />;
+  if (state.status === "loading") return <LoadingArea label="Loading cache settings" />;
   if (state.status === "error") return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={DatabaseZap} title="Cache unavailable" description="Could not load the stage cache settings." action={<Button variant="outline" className={SECONDARY} onClick={() => { setState({ status: "loading", cache: null }); setReloadKey((key) => key + 1); }}>Retry</Button>} /></div>;
 
   async function save() {

@@ -186,7 +186,7 @@ export function ApiKeysScreen() {
         <Button variant="outline" size="sm" disabled={busy || !can("pods.api_key.write")} onClick={() => importCsv(true)}>Import (fail on warnings)</Button>
       </div>
     </SectionCard>
-    {state.status === "loading" ? <LoadingArea panel label="Loading API keys" /> : null}
+    {state.status === "loading" ? <LoadingArea label="Loading API keys" /> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={KeyRound} title="Keys unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState icon={KeyRound} title="No API keys yet" description="Create the first key above. Keys take effect without a redeploy." /></SectionCard> : null}
     {state.status === "ready" && state.items.length > 0 ? <SectionCard title="Keys">

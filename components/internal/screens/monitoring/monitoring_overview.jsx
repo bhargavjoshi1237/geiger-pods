@@ -214,7 +214,7 @@ export function MonitoringOverview({ apiId: initialApiId = "", stage: initialSta
   const stats = state.stats;
   let body;
   if (loading) {
-    body = <LoadingArea panel label="Loading metrics" />;
+    body = <LoadingArea label="Loading metrics" />;
   } else if (state.status === "error") {
     body = <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={Activity}

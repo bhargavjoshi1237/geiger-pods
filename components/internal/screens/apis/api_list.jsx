@@ -278,7 +278,7 @@ export function ApiListScreen() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search APIs, descriptions, IDs…" />
     </Toolbar>
 
-    {state.status === "loading" ? <LoadingArea panel label="Loading APIs" /> : null}
+    {state.status === "loading" ? <LoadingArea label="Loading APIs" /> : null}
     {state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={Network}
       title="APIs unavailable"

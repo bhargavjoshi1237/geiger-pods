@@ -62,7 +62,7 @@ export function TagsEditor({ resourceType, resourceId }) {
     }
   };
 
-  if (state.status === "loading") return <LoadingArea panel label="Loading tags" />;
+  if (state.status === "loading") return <LoadingArea label="Loading tags" />;
   if (state.status === "error") return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={Tags} title="Tags unavailable" description={state.error} /></div>;
 
   const entries = Object.entries(state.tags).map(([key, value]) => ({ key, value }));

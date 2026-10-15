@@ -107,7 +107,7 @@ export function UsagePlansScreen() {
         <Button disabled={busy || !can("pods.usage_plan.write")} onClick={create}>Create</Button>
       </div>
     </SectionCard>
-    {state.status === "loading" ? <LoadingArea panel label="Loading usage plans" /> : null}
+    {state.status === "loading" ? <LoadingArea label="Loading usage plans" /> : null}
     {state.status === "error" ? <SectionCard><EmptyState icon={Gauge} title="Plans unavailable" description={state.error} action={<Button variant="outline" onClick={refresh}>Retry</Button>} /></SectionCard> : null}
     {state.status === "ready" && state.items.length === 0 ? <SectionCard><EmptyState icon={Gauge} title="No usage plans yet" description="Create the first plan above, then attach stages and keys." /></SectionCard> : null}
     {state.status === "ready" && state.items.length > 0 ? <SectionCard title="Plans">
@@ -294,7 +294,7 @@ function PlanDetail({ projectId, plan, can, onClose, onChanged }) {
     URL.revokeObjectURL(url);
   };
 
-  if (detail.status === "loading") return <LoadingArea panel label="Loading usage plan" />;
+  if (detail.status === "loading") return <LoadingArea label="Loading usage plan" />;
   if (detail.status === "error") return <SectionCard><EmptyState icon={Gauge} title="Plan unavailable" description={detail.error} action={<Button variant="outline" onClick={load}>Retry</Button>} /></SectionCard>;
   const data = detail.data;
   return <SectionCard title={data.name} description="Plan detail">

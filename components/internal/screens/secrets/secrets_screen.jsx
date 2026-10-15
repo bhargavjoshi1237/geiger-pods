@@ -594,7 +594,7 @@ export function SecretsScreen() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search secrets…" />
     </Toolbar>
 
-    {status === "loading" ? <LoadingArea panel label="Loading secrets" /> : null}
+    {status === "loading" ? <LoadingArea label="Loading secrets" /> : null}
     {status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={KeyRound}
       title="Secrets unavailable"

@@ -416,7 +416,7 @@ export function UsagePlansScreen() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search usage plans…" />
     </Toolbar>
 
-    {state.status === "loading" ? <LoadingArea panel label="Loading usage plans" /> : null}
+    {state.status === "loading" ? <LoadingArea label="Loading usage plans" /> : null}
     {state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={Gauge}
       title="Usage plans unavailable"
@@ -929,7 +929,7 @@ function PlanKeysSection({ plan, projectId, writable, dialog, setDialog, onChang
   ];
 
   return <>
-    {state.status === "loading" ? <LoadingArea panel label="Loading API keys" /> : null}
+    {state.status === "loading" ? <LoadingArea label="Loading API keys" /> : null}
     {state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={KeyRound}
       title="API keys unavailable"
@@ -1126,7 +1126,7 @@ function PlanUsageSection({ plan, projectId, writable, dialog, setDialog }) {
       </div>
     </SectionCard>
 
-    {report.status === "loading" ? <LoadingArea panel label="Loading usage" /> : null}
+    {report.status === "loading" ? <LoadingArea label="Loading usage" /> : null}
     {report.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={Activity}
       title="Usage unavailable"

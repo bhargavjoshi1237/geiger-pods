@@ -95,6 +95,7 @@ export const workspaceNav = [
     subItems: [
       { title: "General", icon: SlidersHorizontal, path: "settings", section: "settings", screens: ["settings", "projectDetails"] },
       { title: "Team & Access", icon: Users, path: "settings/access", section: "settings", screens: ["teamAccess"] },
+      { title: "Roles & Permissions", icon: ShieldCheck, path: "settings/roles", section: "settings", screens: ["roles"] },
       { title: "Access Tokens", icon: KeyRound, path: "settings/tokens", section: "settings", screens: ["tokens"] },
       { title: "Stacks", icon: Boxes, path: "settings/stacks", section: "settings", screens: ["stacks"] },
       { title: "Audit Log", icon: ScrollText, path: "audit", section: "audit", screens: ["auditLog"] },

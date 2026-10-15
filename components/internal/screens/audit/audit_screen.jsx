@@ -318,7 +318,7 @@ export function AuditScreen() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search actions, resources, actors…" />
     </Toolbar>
 
-    {state.status === "loading" ? <LoadingArea panel label="Loading audit entries" /> : null}
+    {state.status === "loading" ? <LoadingArea label="Loading audit entries" /> : null}
     {state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={ScrollText}
       title="Audit log unavailable"

@@ -119,7 +119,7 @@ function MethodResponsesSection({ api, resourceId, method, models }) {
     return () => { alive = false; };
   }, [project.id, base]);
 
-  if (state.status === "loading") return <LoadingArea panel label="Loading method responses" />;
+  if (state.status === "loading") return <LoadingArea label="Loading method responses" />;
   if (state.status === "error") return <Unavailable title="Method responses unavailable" description={state.error} />;
 
   const pick = (statusCode) => {
@@ -233,7 +233,7 @@ function IntegrationSection({ api, method, onChanged }) {
       </div>
     </SectionCard>;
   }
-  if (state.status === "loading") return <LoadingArea panel label="Loading integration" />;
+  if (state.status === "loading") return <LoadingArea label="Loading integration" />;
   if (state.status === "error" || !state.integration) {
     return <Unavailable title="Integration unavailable" description={state.error ?? "Not found."} />;
   }
@@ -518,7 +518,7 @@ export function MethodDetail({ api, resourceId, method, onChanged }) {
 
   return <div className="space-y-8">
     <MethodAuthPicker api={api} resourceId={resourceId} method={method} onSaved={onChanged} />
-    {lookups.status === "loading" ? <LoadingArea panel label="Loading validators and models" /> : <>
+    {lookups.status === "loading" ? <LoadingArea label="Loading validators and models" /> : <>
       <MethodRequestSection api={api} resourceId={resourceId} method={method} validators={lookups.validators} models={lookups.models} onSaved={onChanged} />
       <MethodResponsesSection api={api} resourceId={resourceId} method={method} models={lookups.models} />
     </>}

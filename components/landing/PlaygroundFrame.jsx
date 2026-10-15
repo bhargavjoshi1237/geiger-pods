@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { LoadingArea } from "@geiger/ui/screen-kit";
 
 // The live playground card on a landing page: the app's own /playground route in
 // an iframe, so the workspace's dialogs, sheets, menus and toasts — portalled to
 // <body> with fixed positioning — open inside the card instead of over the
-// landing page. Mounts when it scrolls near the viewport and shows a skeleton
+// landing page. Mounts when it scrolls near the viewport and shows the logo loader
 // until the workspace has loaded.
 //
 // `src` is the full path including the app's base path (e.g. "/assets/playground"),
@@ -40,18 +41,7 @@ export function PlaygroundFrame({ src, title, className = "" }) {
       className={`relative h-[640px] overflow-hidden rounded-lg border border-border bg-background sm:h-[700px] lg:h-[860px] ${className}`}
     >
       {!loaded ? (
-        <div aria-hidden className="absolute inset-0 flex animate-pulse">
-          <div className="hidden w-60 shrink-0 border-r border-border bg-muted/40 md:block" />
-          <div className="flex flex-1 flex-col gap-4 p-6">
-            <div className="h-8 w-1/3 rounded-md bg-muted" />
-            <div className="grid grid-cols-3 gap-4">
-              <div className="h-24 rounded-lg bg-muted" />
-              <div className="h-24 rounded-lg bg-muted" />
-              <div className="h-24 rounded-lg bg-muted" />
-            </div>
-            <div className="flex-1 rounded-lg bg-muted/60" />
-          </div>
-        </div>
+        <LoadingArea size={80} label="Loading the playground" className="absolute inset-0" />
       ) : null}
       {visible ? (
         <iframe

@@ -25,7 +25,7 @@ export function GatewayResponsesTab({ types = [], customizations = [], loading =
   const current = customizations.find((entry) => entry.responseType === selected) ?? null;
   const selectedType = types.find((entry) => entry.type === selected) ?? null;
 
-  if (loading) return <LoadingArea panel label="Loading gateway responses" />;
+  if (loading) return <LoadingArea label="Loading gateway responses" />;
   if (error) return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={MessageSquareWarning} title="Could not load gateway responses" description={String(error?.message ?? error)} /></div>;
 
   const customizationFor = (type) => customizations.find((entry) => entry.responseType === type) ?? null;

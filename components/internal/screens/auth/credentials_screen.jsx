@@ -643,7 +643,7 @@ export function SigningCredentialsScreen() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search credentials, access key IDs…" />
     </Toolbar>
 
-    {state.status === "loading" ? <LoadingArea panel label="Loading signing credentials" /> : null}
+    {state.status === "loading" ? <LoadingArea label="Loading signing credentials" /> : null}
     {state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={KeyRound}
       title="Credentials unavailable"

@@ -30,6 +30,10 @@ test("S02: resolveScreen matches nested patterns and rejects unknown tabs", () =
     screens.resolveScreen(["settings", "access"]),
     { section: "settings", screen: "teamAccess", params: {} },
   );
+  assert.deepEqual(
+    screens.resolveScreen(["settings", "roles"]),
+    { section: "settings", screen: "roles", params: {} },
+  );
   assert.equal(screens.resolveScreen(["settings", "billing"]), null);
   assert.equal(screens.resolveScreen(["unknown"]), null);
   assert.equal(screens.resolveScreen(["apis", "a", "routes", "extra"]), null);

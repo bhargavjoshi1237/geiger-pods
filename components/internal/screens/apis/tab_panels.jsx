@@ -99,7 +99,7 @@ export function ModelsPanel({ api }) {
     }
   };
 
-  if (state.status === "loading") return <LoadingArea panel label="Loading models" />;
+  if (state.status === "loading") return <LoadingArea label="Loading models" />;
   if (state.status === "error") {
     return <Unavailable icon={Database} title="Models unavailable" error={state.error} onRetry={refresh} />;
   }
@@ -142,7 +142,7 @@ export function CorsPanel({ api }) {
     return () => { alive = false; };
   }, [project.id, apiRef]);
 
-  if (state.status === "loading") return <LoadingArea panel label="Loading CORS" />;
+  if (state.status === "loading") return <LoadingArea label="Loading CORS" />;
   if (state.status === "error") {
     return <Unavailable icon={Globe} title="CORS unavailable" error={state.error} onRetry={refresh} />;
   }
@@ -250,7 +250,7 @@ export function GatewayResponsesPanel({ api }) {
     }
   };
 
-  if (state.status === "loading") return <LoadingArea panel label="Loading gateway responses" />;
+  if (state.status === "loading") return <LoadingArea label="Loading gateway responses" />;
   if (state.status === "error") {
     return <Unavailable icon={MessageSquareWarning} title="Gateway responses unavailable" error={state.error} onRetry={load} />;
   }

@@ -598,7 +598,7 @@ export function ConnectorsScreen() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search connectors, targets…" />
     </Toolbar>
 
-    {state.status === "loading" ? <LoadingArea panel label="Loading connectors" /> : null}
+    {state.status === "loading" ? <LoadingArea label="Loading connectors" /> : null}
     {state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={Cable}
       title="Connectors unavailable"

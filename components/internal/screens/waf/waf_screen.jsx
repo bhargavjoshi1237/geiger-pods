@@ -410,7 +410,7 @@ function SampledRequestsSection({ projectId, acl }) {
     {error ? <div className="rounded-xl border border-border bg-surface-subtle">
       <EmptyState icon={Activity} title="Sampled requests unavailable" description={error} />
     </div> : null}
-    {rows === null && !error ? <LoadingArea panel label="Loading sampled requests" /> : null}
+    {rows === null && !error ? <LoadingArea label="Loading sampled requests" /> : null}
     {rows !== null && !error ? <DataTable
       columns={columns}
       data={rows}
@@ -616,7 +616,7 @@ function AclsTab({ collection, onOpen, onCreate }) {
       </div>
       <SearchInput value={search} onChange={setSearch} placeholder="Search web ACLs…" />
     </Toolbar>
-    {collection.status === "loading" ? <LoadingArea panel label="Loading web ACLs" /> : null}
+    {collection.status === "loading" ? <LoadingArea label="Loading web ACLs" /> : null}
     {collection.status === "error" ? <ErrorPanel icon={Shield} title="Could not load web ACLs" error={collection.error} onRetry={collection.retry} /> : null}
     {collection.status === "ready" ? <div className="space-y-5">
       <DataTable
@@ -684,7 +684,7 @@ function SetsTab({ kind, collection, onCreate }) {
       <div />
       <SearchInput value={search} onChange={setSearch} placeholder={`Search ${meta.plural}…`} />
     </Toolbar>
-    {collection.status === "loading" ? <LoadingArea panel label={`Loading ${meta.plural}`} /> : null}
+    {collection.status === "loading" ? <LoadingArea label={`Loading ${meta.plural}`} /> : null}
     {collection.status === "error" ? <ErrorPanel icon={Icon} title={`Could not load ${meta.plural}`} error={collection.error} onRetry={collection.retry} /> : null}
     {collection.status === "ready" ? <div className="space-y-5">
       <DataTable

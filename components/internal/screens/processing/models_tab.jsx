@@ -29,7 +29,7 @@ export function ModelsTab({ models = [], loading = false, error = null, onCreate
   const [viewing, setViewing] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  if (loading) return <LoadingArea panel label="Loading models" />;
+  if (loading) return <LoadingArea label="Loading models" />;
   if (error) return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={Database} title="Could not load models" description={String(error?.message ?? error)} /></div>;
 
   const open = (model) => (canWrite ? setEditing(model) : setViewing(model));

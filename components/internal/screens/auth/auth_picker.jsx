@@ -111,7 +111,7 @@ export function MethodAuthPicker({ api, resourceId, method, onSaved }) {
     return () => { alive = false; };
   }, [project.id, apiRef]);
 
-  if (loading) return <LoadingArea panel label="Loading authorizers" />;
+  if (loading) return <LoadingArea label="Loading authorizers" />;
 
   const save = async () => {
     const scopes = form.scopesText.split(/\s+/).map((scope) => scope.trim()).filter(Boolean);

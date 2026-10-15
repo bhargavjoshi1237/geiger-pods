@@ -110,7 +110,7 @@ export function ResourcePolicyEditor({ api }) {
   if (api.protocol !== "REST") return null;
 
   if (state.status === "loading") {
-    return <LoadingArea panel label="Loading resource policy" />;
+    return <LoadingArea label="Loading resource policy" />;
   }
   if (state.status === "error") {
     return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={ShieldCheck} title="Resource policy unavailable" description={state.error} /></div>;

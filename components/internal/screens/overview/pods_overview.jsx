@@ -86,6 +86,13 @@ const CARD = "var(--ov-bg)";
 const SERIES = ["var(--ov-ink)", "var(--ov-s2)", "var(--ov-s3)", "var(--ov-s4)", "var(--ov-s5)"];
 
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+const millions = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Three-digit thousands ("456K") overflow the donut hole, so they read as millions ("0.46M").
+const compactCount = (value) => {
+  if (value < 99_950 || value >= 999_950) return compact.format(value);
+  return value >= 995_000 ? "1M" : `${millions.format(value / 1_000_000)}M`;
+};
 
 const TREND_METRICS = [
   { value: "requests", label: "Requests" },
@@ -253,7 +260,7 @@ function TrafficTrendWidget({ pending, dashboard, rows }) {
           <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: TICK, fontSize: 11 }} />
           <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" hideLabel formatter={(value) => <span className="font-medium tabular-nums text-foreground">{formatCount(value)}</span>} />} />
           <Line dataKey="value" type="monotone" stroke={INK} strokeWidth={2} dot={{ fill: INK, r: 3 }} activeDot={{ r: 5 }}>
-            <LabelList dataKey="value" position="top" offset={10} className="fill-foreground dark:fill-[#ededed]" fontSize={11} formatter={(value) => compact.format(value)} />
+            <LabelList dataKey="value" position="top" offset={10} className="fill-foreground dark:fill-[#ededed]" fontSize={11} formatter={(value) => compactCount(value)} />
           </Line>
         </LineChart>
       </ChartContainer>
@@ -278,7 +285,7 @@ function TrafficMixWidget({ pending, rows }) {
       <div className="relative mt-4 flex min-h-0 w-full flex-1 items-center justify-center">
         <div className="h-[156px] w-[156px] rounded-full border-[34px] border-border" />
         <div className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center">
-          <span className="text-3xl font-bold leading-none text-foreground">0</span>
+          <span className="text-xl font-bold leading-none text-foreground">0</span>
           <span className="mt-1 text-xs font-medium text-muted-foreground">0% share</span>
         </div>
       </div>
@@ -305,7 +312,7 @@ function TrafficMixWidget({ pending, rows }) {
         </PieChart>
       </ChartContainer>
       <div className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center">
-        <span className="text-3xl font-bold leading-none text-foreground">{compact.format(active?.value ?? 0)}</span>
+        <span className="text-xl font-bold leading-none text-foreground">{compactCount(active?.value ?? 0)}</span>
         <span className="mt-1 text-xs font-medium text-muted-foreground">{total > 0 ? Math.round(((active?.value ?? 0) / total) * 100) : 0}% share</span>
       </div>
     </div>

@@ -407,7 +407,7 @@ export function TokensScreen() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search tokens, prefixes, scopes…" />
     </Toolbar>
 
-    {state.status === "loading" ? <LoadingArea panel label="Loading access tokens" /> : null}
+    {state.status === "loading" ? <LoadingArea label="Loading access tokens" /> : null}
     {state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={KeyRound}
       title="Tokens unavailable"

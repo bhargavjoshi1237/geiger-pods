@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FolderKanban, Gauge, Globe2, Loader2, LockKeyhole, ScrollText, Settings2 } from "lucide-react";
-import { EmptyState, Field, LoadingArea, ScreenHeader, SectionCard, SettingRow, SettingsList } from "@/components/internal/shared/screen_kit";
-import { MainScreenWrapper } from "@/components/internal/shared/screen_wrappers";
-import { EditorSections } from "@/components/internal/shared/editor_shell";
+import { FolderKanban, Gauge, Globe2, ScrollText, Settings2 } from "lucide-react";
+import { EmptyState, Field, SectionCard, SettingRow, SettingsList } from "@/components/internal/shared/screen_kit";
+import { SettingsScreen } from "@/components/internal/shared/settings_screen";
 import { Button } from "@geiger/ui/button";
 import { Input } from "@geiger/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@geiger/ui/select";
@@ -116,7 +115,7 @@ const SECTIONS = [
   { key: "routing", label: "Routing", icon: Globe2, desc: "Defaults for where new stages run.", render: RoutingSection },
 ];
 
-export function SettingsScreen() {
+export function GeneralSettingsScreen() {
   const { project } = useProject();
   const { can } = useRbac();
   const [state, setState] = useState({ status: "loading", settings: null, error: null });
@@ -182,33 +181,17 @@ export function SettingsScreen() {
     onRetry: load,
   }), [form, set, writable, saving, state.settings, state.error, load]);
 
-  const loading = state.status === "loading";
-
-  return <MainScreenWrapper>
-    <ScreenHeader
-      title="General"
-      description="Project details and gateway defaults for this workspace."
-      actions={writable ? <Button
-        className="bg-primary text-primary-foreground hover:bg-primary/90"
-        disabled={saving || loading || !state.settings}
-        onClick={save}
-      >
-        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        {saving ? "Saving…" : "Save Changes"}
-      </Button> : null}
-    />
-
-    {!writable ? <div className="flex items-start gap-2.5 rounded-lg border border-border bg-surface-card px-3.5 py-2.5 text-xs leading-relaxed text-text-secondary">
-      <LockKeyhole className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-tertiary" />
-      <p>You can see these settings, but changing them needs the <span className="text-foreground">Edit project settings</span> permission.</p>
-    </div> : null}
-
-    {loading ? <LoadingArea panel label="Loading settings" /> : <EditorSections nav={SECTIONS} defaultSection="project">
-      {({ activeItem }) => {
-        // Rendered as an element, not called — sections own their own hooks.
-        const Body = activeItem.render;
-        return <Body {...sectionProps} />;
-      }}
-    </EditorSections>}
-  </MainScreenWrapper>;
+  return <SettingsScreen
+    title="General"
+    description="Project details and gateway defaults for this workspace."
+    sections={SECTIONS}
+    sectionProps={sectionProps}
+    defaultSection="project"
+    loading={state.status === "loading"}
+    saving={saving}
+    canWrite={writable}
+    saveDisabled={!state.settings}
+    onSave={save}
+    readOnlyNotice={<>You can see these settings, but changing them needs the <span className="text-foreground">Edit project settings</span> permission.</>}
+  />;
 }

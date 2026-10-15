@@ -178,7 +178,7 @@ export function DocsTab({ api, stages }) {
     }
   };
 
-  if (state.status === "loading") return <LoadingArea panel label="Loading documentation" />;
+  if (state.status === "loading") return <LoadingArea label="Loading documentation" />;
   if (state.status === "error") {
     return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={BookOpen} title="Documentation unavailable" description={state.error} action={<Button variant="outline" className={SECONDARY} onClick={refresh}>Retry</Button>} /></div>;
   }

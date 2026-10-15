@@ -149,7 +149,7 @@ export function ClientCertificatesCard() {
     description={blurb}
     action={<Button size="sm" className={PRIMARY} onClick={openCreate}><Plus className="size-4" />Generate Certificate</Button>}
   >
-    {state.status === "loading" ? <LoadingArea panel label="Loading client certificates" /> : null}
+    {state.status === "loading" ? <LoadingArea label="Loading client certificates" /> : null}
     {state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={KeyRound} title="Certificates unavailable" description={state.error} action={<Button variant="outline" className={SECONDARY} onClick={refresh}>Retry</Button>} /></div> : null}
     {state.status === "ready" ? <div className="space-y-3">
       <DataTable

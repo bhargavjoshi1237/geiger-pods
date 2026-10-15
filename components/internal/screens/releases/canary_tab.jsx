@@ -150,7 +150,7 @@ export function CanaryTab({ api, stage, onChanged }) {
     }
   }
 
-  if (state.status === "loading") return <LoadingArea panel label="Loading canary" />;
+  if (state.status === "loading") return <LoadingArea label="Loading canary" />;
   const { canary } = state;
   const share = Number(percent) || 0;
   const canWrite = can("pods.stage.write");

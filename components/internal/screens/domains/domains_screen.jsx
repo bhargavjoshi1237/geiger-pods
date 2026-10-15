@@ -289,7 +289,7 @@ function MappingsSection({ projectId, domain, canWrite }) {
   ].filter(Boolean);
 
   return <div className="space-y-6">
-    {mappings.status === "loading" ? <LoadingArea panel label="Loading mappings" /> : <DataTable
+    {mappings.status === "loading" ? <LoadingArea label="Loading mappings" /> : <DataTable
       columns={columns}
       data={items}
       getRowKey={(entry) => entry.id}
@@ -409,7 +409,7 @@ function RulesSection({ projectId, domain, canWrite }) {
       <p className="text-sm text-foreground">{ROUTING_MODE_LABEL[domain.routingMode] ?? domain.routingMode}</p>
     </SectionCard>
 
-    {rules.status === "loading" ? <LoadingArea panel label="Loading routing rules" /> : <DataTable
+    {rules.status === "loading" ? <LoadingArea label="Loading routing rules" /> : <DataTable
       columns={columns}
       data={rules.items}
       getRowKey={(entry) => entry.id}
@@ -812,7 +812,7 @@ export function DomainsScreen() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search domains…" />
     </Toolbar>
 
-    {state.status === "loading" ? <LoadingArea panel label="Loading domains" /> : null}
+    {state.status === "loading" ? <LoadingArea label="Loading domains" /> : null}
     {state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={Globe}
       title="Could not load domains"

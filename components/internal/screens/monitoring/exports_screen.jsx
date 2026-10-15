@@ -399,7 +399,7 @@ export function ExportsScreen() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search sinks, destinations, IDs…" />
     </Toolbar>
 
-    {state.status === "loading" ? <LoadingArea panel label="Loading export sinks" /> : state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
+    {state.status === "loading" ? <LoadingArea label="Loading export sinks" /> : state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={UploadCloud}
       title="Sinks unavailable"
       description={state.error}

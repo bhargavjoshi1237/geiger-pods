@@ -206,7 +206,7 @@ export function LogsScreen() {
       <SearchInput value={search} onChange={setSearch} placeholder={field?.placeholder} />
     </Toolbar>
 
-    {loading ? <LoadingArea panel label="Loading logs" /> : state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
+    {loading ? <LoadingArea label="Loading logs" /> : state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={ScrollText}
       title="Logs unavailable"
       description={state.error}
@@ -265,7 +265,7 @@ function RequestDetail({ projectId, requestId, onBack }) {
       </Button>}
     />
 
-    {loading ? <LoadingArea panel label="Loading request" /> : state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
+    {loading ? <LoadingArea label="Loading request" /> : state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={ScrollText}
       title="Request unavailable"
       description={state.error}

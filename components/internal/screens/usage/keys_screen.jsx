@@ -523,7 +523,7 @@ export function ApiKeysScreen() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search keys, customers, prefixes…" />
     </Toolbar>
 
-    {state.status === "loading" ? <LoadingArea panel label="Loading API keys" /> : null}
+    {state.status === "loading" ? <LoadingArea label="Loading API keys" /> : null}
     {state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={KeyRound}
       title="API keys unavailable"

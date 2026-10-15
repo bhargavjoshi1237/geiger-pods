@@ -156,7 +156,7 @@ export function StacksPanel() {
         </div>
       </SectionCard>
 
-      {busy ? <LoadingArea panel label="Running stack operation" /> : result ? <SectionCard
+      {busy ? <LoadingArea label="Running stack operation" /> : result ? <SectionCard
         title={RESULT_TITLE[result.action] ?? result.action}
         description={result.action === "plan"
           ? "Operations run in this order on apply. Deletes are skipped unless pruning."

@@ -668,7 +668,7 @@ function PortalEditor({ portalId, summary, products, onBack, onChanged, onProduc
     return <MainScreenWrapper>
       <EditorHeader back={{ label: "All Portals", onClick: onBack }} title={summary.name} status={summary.status} statusMap={PORTAL_STATUS_MAP} />
       {state.status === "loading"
-        ? <LoadingArea panel label="Loading portal" />
+        ? <LoadingArea label="Loading portal" />
         : <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={Globe} title="Portal unavailable" description={state.error} action={<Button variant="outline" onClick={() => { setState((current) => ({ ...current, status: "loading" })); load().then((detail) => { if (detail) setForm(toForm(detail)); }); }}>Retry</Button>} /></div>}
     </MainScreenWrapper>;
   }
@@ -851,7 +851,7 @@ export function PortalListScreen() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search portals, slugs…" />
     </Toolbar>
 
-    {state.status === "loading" ? <LoadingArea panel label="Loading portals" /> : null}
+    {state.status === "loading" ? <LoadingArea label="Loading portals" /> : null}
     {state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={Globe}
       title="Portals unavailable"

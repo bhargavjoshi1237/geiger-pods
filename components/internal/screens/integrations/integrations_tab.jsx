@@ -393,7 +393,7 @@ export function IntegrationsTab({ apiId, protocol = "REST" }) {
       description={ready && state.items.length > 0 ? `${state.items.length} configured — HTTP proxy, mock, functions, AWS services and private connectors.` : "HTTP proxy, mock, functions, AWS services and private connectors."}
       action={<Button size="sm" className={PRIMARY} onClick={() => setDialog({ mode: "create" })}><Plus className="size-4" />New Integration</Button>}
     >
-      {state.status === "loading" ? <LoadingArea panel label="Loading integrations" /> : null}
+      {state.status === "loading" ? <LoadingArea label="Loading integrations" /> : null}
       {state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={PlugZap} title="Integrations unavailable" description={state.error} action={<Button variant="outline" size="sm" className={SECONDARY} onClick={refresh}>Retry</Button>} /></div> : null}
       {ready && state.items.length === 0 ? <button
         type="button"

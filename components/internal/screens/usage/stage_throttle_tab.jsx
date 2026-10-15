@@ -122,7 +122,7 @@ export function StageThrottleTab({ api, stage }) {
     }
   };
 
-  if (state.status === "loading") return <LoadingArea panel label="Loading stage throttling" />;
+  if (state.status === "loading") return <LoadingArea label="Loading stage throttling" />;
   if (state.status === "error") {
     return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={Gauge}

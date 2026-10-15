@@ -256,7 +256,7 @@ function TruststoreEditPage({ projectId, truststore, canWrite, reloadKey, onBack
         </SectionCard>
       </div>
       <div hidden={active !== "versions"}>
-        {detail.status === "loading" ? <LoadingArea panel label="Loading version history" /> : null}
+        {detail.status === "loading" ? <LoadingArea label="Loading version history" /> : null}
         {detail.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
           icon={History}
           title="Version history unavailable"
@@ -430,7 +430,7 @@ export function TruststoresScreen() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search trust stores…" />
     </Toolbar>
 
-    {state.status === "loading" ? <LoadingArea panel label="Loading trust stores" /> : null}
+    {state.status === "loading" ? <LoadingArea label="Loading trust stores" /> : null}
     {state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={ShieldCheck}
       title="Could not load trust stores"

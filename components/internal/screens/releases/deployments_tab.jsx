@@ -111,7 +111,7 @@ export function DeploymentsTab({ api, stages = [], onChanged }) {
   };
 
   if (state.status === "loading") {
-    return <LoadingArea panel label="Loading deployments" />;
+    return <LoadingArea label="Loading deployments" />;
   }
   if (state.status === "error") {
     return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={Package} title="Deployments unavailable" description={state.error} action={<Button variant="outline" className={SECONDARY} onClick={refresh}>Retry</Button>} /></div>;

@@ -426,7 +426,7 @@ export function AuthorizersTab({ api }) {
       description="Cached results are re-checked per method — a policy cached from GET /pets may still deny POST /pets."
       action={writable ? <Button size="sm" className={PRIMARY} onClick={() => setDialog({ mode: "create" })}><Plus className="size-4" />New Authorizer</Button> : null}
     >
-      {state.status === "loading" ? <LoadingArea panel label="Loading authorizers" /> : null}
+      {state.status === "loading" ? <LoadingArea label="Loading authorizers" /> : null}
       {state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={Fingerprint} title="Authorizers unavailable" description={state.error} action={<Button variant="outline" size="sm" className={SECONDARY} onClick={refresh}>Retry</Button>} /></div> : null}
       {state.status === "ready" ? <DataTable
         columns={columns}

@@ -11,8 +11,9 @@ import { ProjectDetails } from "./project_details";
 import { Roadmap } from "./roadmap";
 import { PlannedScreen } from "./planned_screen";
 import { SecretsScreen } from "./secrets/secrets_screen";
-import { SettingsScreen } from "./settings/project_settings";
+import { GeneralSettingsScreen } from "./settings/project_settings";
 import { TeamAccessScreen } from "./settings/team_access";
+import { RolesPermissionsScreen } from "./settings/roles_permissions";
 import { ApiDetailScreen } from "./apis/api_detail";
 import { ApiListScreen } from "./apis/api_list";
 import { ConnectorsScreen } from "./connectors/connectors_screen";
@@ -34,8 +35,9 @@ import { PortalListScreen } from "./distribution/portals_list";
 
 const screens = {
   overview: PodsOverview,
-  settings: SettingsScreen,
+  settings: GeneralSettingsScreen,
   teamAccess: TeamAccessScreen,
+  roles: RolesPermissionsScreen,
   tokens: TokensScreen,
   exports: ExportsScreen,
   stacks: StacksPanel,

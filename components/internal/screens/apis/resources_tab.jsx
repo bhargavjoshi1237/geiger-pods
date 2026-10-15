@@ -153,7 +153,7 @@ export function ResourcesTab({ api }) {
   };
 
   if (state.status === "loading") {
-    return <LoadingArea panel label="Loading resources" />;
+    return <LoadingArea label="Loading resources" />;
   }
   if (state.status === "error") {
     return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={FolderTree} title="Resources unavailable" description={state.error} action={<Button variant="outline" size="sm" className={SECONDARY} onClick={refresh}>Retry</Button>} /></div>;

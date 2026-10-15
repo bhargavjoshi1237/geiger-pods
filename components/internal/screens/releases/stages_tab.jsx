@@ -90,7 +90,7 @@ export function StagesTab({ api }) {
   };
 
   if (state.status === "loading") {
-    return <LoadingArea panel label="Loading stages" />;
+    return <LoadingArea label="Loading stages" />;
   }
   if (state.status === "error") {
     return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={Layers} title="Stages unavailable" description={state.error} action={<Button variant="outline" className={SECONDARY} onClick={refresh}>Retry</Button>} /></div>;
@@ -354,7 +354,7 @@ function StageDetail({ api, stage, initialTab, onBack, onChanged, can, projectId
       description="Every time this stage moved to a different deployment."
       action={<Button size="sm" variant="outline" className={SECONDARY} disabled={history.status === "loading"} onClick={loadHistory}><History className="size-4" />Reload</Button>}
     >
-      {history.status === "loading" ? <LoadingArea panel label="Loading history" /> : null}
+      {history.status === "loading" ? <LoadingArea label="Loading history" /> : null}
       {history.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={History} title="History unavailable" description={history.error} action={<Button variant="outline" className={SECONDARY} onClick={loadHistory}>Retry</Button>} /></div> : null}
       {history.status === "ready" ? <DataTable
         columns={historyColumns}

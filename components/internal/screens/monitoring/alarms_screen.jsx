@@ -521,7 +521,7 @@ export function AlarmsScreen() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search alarms, metrics…" />
     </Toolbar>
 
-    {state.status === "loading" ? <LoadingArea panel label="Loading alarms" /> : state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
+    {state.status === "loading" ? <LoadingArea label="Loading alarms" /> : state.status === "error" ? <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={BellRing}
       title="Alarms unavailable"
       description={state.error}
@@ -805,7 +805,7 @@ function HistorySection({ alarmId }) {
     return () => { alive = false; };
   }, [project.id, alarmId, key]);
 
-  if (state.key !== key) return <LoadingArea panel label="Loading history" />;
+  if (state.key !== key) return <LoadingArea label="Loading history" />;
   if (state.status === "error") {
     return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={History}

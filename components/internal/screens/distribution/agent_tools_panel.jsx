@@ -77,7 +77,7 @@ export function AgentToolsPanel({ api, stages }) {
       <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState icon={Rocket} title="No stages yet" description="Deploy a stage first, then configure agent tools on it." /></div>
     </SectionCard>;
   }
-  if (state.status === "loading") return <LoadingArea panel label="Loading agent tools" />;
+  if (state.status === "loading") return <LoadingArea label="Loading agent tools" />;
   if (state.status === "error") {
     return <div className="rounded-xl border border-border bg-surface-subtle"><EmptyState
       icon={Bot}
